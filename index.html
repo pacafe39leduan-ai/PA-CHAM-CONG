@@ -51,9 +51,12 @@
   .okbox{background:var(--xanh-nhat);color:var(--xanh)} .errbox{background:var(--do-nhat);color:var(--do)}
 
   /* camera */
-  .cam{position:relative;width:260px;height:260px;margin:16px auto 8px;border-radius:50%;overflow:hidden;background:#1d1510;border:6px solid var(--vien);transition:border-color .2s}
-  .cam.face{border-color:#e0b98a} .cam.go{border-color:var(--xanh)} .cam.err{border-color:var(--do)}
-  .cam video,.cam img{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+  /* Safari trên iPhone không cắt tròn video bị lật gương: cắt bằng clip-path + mask, viền tròn vẽ đè lên trên */
+  .cam{position:relative;width:260px;height:260px;margin:16px auto 8px;border-radius:50%;overflow:hidden;background:#1d1510;
+       clip-path:circle(50% at 50% 50%);-webkit-mask-image:-webkit-radial-gradient(white,black);isolation:isolate;transform:translateZ(0)}
+  .cam::after{content:"";position:absolute;inset:0;border-radius:50%;border:8px solid var(--vien);z-index:2;pointer-events:none;transition:border-color .2s}
+  .cam.face::after{border-color:#e0b98a} .cam.go::after{border-color:var(--xanh)} .cam.err::after{border-color:var(--do)}
+  .cam video,.cam img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;border-radius:50%;z-index:1}
   .hint{text-align:center;font-size:19px;font-weight:700;min-height:28px;margin:6px 0;color:var(--nau-dam)}
   .who{text-align:center;margin-top:6px}
   .who .ten{font-size:24px;font-weight:800}
@@ -123,7 +126,7 @@
 
       <div id="ccResult"></div>
       <button class="btn hidden" id="btnScan">Quét lại</button>
-      <p class="muted" style="text-align:center;margin-top:12px">Kết nối WiFi quán, tắt 4G. Nhìn thẳng camera, nhắm mắt 1 giây rồi mở ra.</p>
+      <p class="muted" style="text-align:center;margin-top:12px">Kết nối WiFi quán, tắt 4G. Nhìn thẳng camera rồi chớp mắt 1 lần.</p>
     </div>
     <div class="card hidden" id="install">
       <img src="icon-192.png" alt="">
@@ -385,7 +388,7 @@ function taiModel(){
   }
   return modelsReady;
 }
-const OPTS = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+const OPTS = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
 async function moCamera(video){
   dongCamera();
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Trình duyệt không hỗ trợ camera. Hãy mở bằng Safari (iPhone) hoặc Chrome (Android).');
@@ -414,10 +417,18 @@ function chupAnh(video){
 }
 
 // ---------------- chấm công bằng khuôn mặt ----------------
-const SC = { run:false, base:0, frames:0, closed:false, closedAt:0, phien:0 };
+const SC = { run:false, frames:0, closed:false, closedAt:0, phien:0, ears:[], miss:0, yaws:[], batDau:0, quay:0 };
 function hint(t){ $('#hint').textContent = t; }
 function camState(s){ $('#cam').className = 'cam' + (s ? ' ' + s : ''); }
-function resetBlink(){ SC.base = 0; SC.frames = 0; SC.closed = false; }
+function resetBlink(){ SC.frames = 0; SC.closed = false; SC.ears = []; SC.miss = 0; SC.yaws = []; SC.quay = 0; SC.batDau = Date.now(); }
+// Mức "mắt mở" = giá trị cao thứ 2 trong ~20 khung gần nhất (bỏ 1 giá trị nhiễu cao nhất)
+function earMo(){ const a = SC.ears.slice().sort((x, y) => y - x); return a[Math.min(1, a.length - 1)] || 0; }
+// Hướng quay đầu: vị trí mũi so với hai mắt (≈0.5 khi nhìn thẳng)
+function huongDau(lm){
+  const tb = p => ({ x: p.reduce((s, q) => s + q.x, 0) / p.length });
+  const l = tb(lm.getLeftEye()).x, r = tb(lm.getRightEye()).x, n = lm.getNose()[3].x;
+  return (n - l) / ((r - l) || 1);
+}
 function ketThuc(html){
   SC.run = false; dongCamera();
   $('#confirm').classList.add('hidden');
@@ -474,22 +485,34 @@ async function vongQuet(phien){
   try {
     const dets = await faceapi.detectAllFaces(video, OPTS()).withFaceLandmarks();
     if (!SC.run || phien !== SC.phien) return;
-    if (!dets.length){ hint('Đưa khuôn mặt vào khung tròn'); camState(''); resetBlink(); }
+    if (!dets.length){
+      // Khi nhắm mắt, máy hay mất dấu khuôn mặt trong tích tắc: coi đó là đang nhắm mắt, không bắt đầu lại
+      SC.miss++;
+      if (SC.frames >= 3 && SC.miss <= 25){ if (!SC.closed && SC.miss >= 2){ SC.closed = true; SC.closedAt = Date.now(); } }
+      else if (SC.miss > 25){ hint('Đưa khuôn mặt vào khung tròn'); camState(''); resetBlink(); }
+    }
     else if (dets.length > 1){ hint('Chỉ một người trong khung hình'); camState('err'); resetBlink(); }
-    else if (dets[0].detection.box.width / video.videoWidth < 0.25){ hint('Đưa điện thoại lại gần hơn'); camState('face'); resetBlink(); }
+    else if (dets[0].detection.box.width / video.videoWidth < 0.2){ hint('Đưa điện thoại lại gần hơn'); camState('face'); SC.miss = 0; }
     else {
-      camState('face');
-      const e = ear(dets[0].landmarks);
+      camState('face'); SC.miss = 0;
+      const lm = dets[0].landmarks, e = ear(lm), y = huongDau(lm);
       SC.frames++;
-      if (!SC.closed) SC.base = Math.max(e, SC.base * 0.98);
-      if (SC.frames < 4) hint('Giữ yên khuôn mặt…');
+      if (SC.frames < 3){ hint('Giữ yên khuôn mặt…'); SC.ears.push(e); SC.yaws.push(y); }
       else if (!SC.closed){
-        hint('Nhắm mắt 1 giây rồi mở ra');
-        if (e < SC.base * 0.72){ SC.closed = true; SC.closedAt = Date.now(); }
+        const mo = earMo();
+        if (SC.ears.length >= 3 && e < mo * 0.8){ SC.closed = true; SC.closedAt = Date.now(); }
+        else { SC.ears.push(e); if (SC.ears.length > 20) SC.ears.shift(); }
+        // Cách thay thế: quay đầu nhẹ sang một bên rồi về giữa
+        SC.yaws.push(y); if (SC.yaws.length > 20) SC.yaws.shift();
+        const giua = SC.yaws.slice().sort((a, b) => a - b)[SC.yaws.length >> 1];
+        if (!SC.quay && Math.abs(y - giua) > 0.12) SC.quay = 1;
+        else if (SC.quay && Math.abs(y - giua) < 0.05){ SC.run = false; return nhanDien(phien); }
+        const lau = Date.now() - SC.batDau > 8000;
+        hint(SC.quay ? 'Quay mặt về giữa' : lau ? 'Chớp mắt, hoặc quay đầu nhẹ sang trái rồi về giữa' : 'Chớp mắt 1 lần');
       } else {
         hint('Mở mắt ra');
-        if (e > SC.base * 0.85){ SC.run = false; return nhanDien(phien); }
-        if (Date.now() - SC.closedAt > 5000) resetBlink();
+        if (e > earMo() * 0.9){ SC.run = false; return nhanDien(phien); }
+        if (Date.now() - SC.closedAt > 4000){ SC.closed = false; }
       }
     }
   } catch(err){}
