@@ -148,6 +148,7 @@
 
   <!-- ===== Tab ca làm ===== -->
   <section id="tab-ca" class="tab hidden">
+    <div class="card hidden" id="cardTB" style="border-color:#e0b98a;background:#fffaf2"><h3>🔔 Thông báo mới</h3><div id="dsTB"></div></div>
     <div class="card">
       <h3>Đăng ký ca</h3>
       <label for="ngayCa">Ngày</label>
@@ -174,6 +175,18 @@
       <input id="lyDoTre" maxlength="200" placeholder="VD: đi khám bệnh, xe hư">
       <button class="btn" id="btnXinTre">Gửi xin phép</button>
       <div id="dsXinTre"></div>
+    </div>
+    <div class="card">
+      <h3>Xin nghỉ / Đổi ca</h3>
+      <div class="two">
+        <div><label for="loaiDon">Loại đơn</label><select id="loaiDon"><option>Xin nghỉ</option><option>Đổi ca</option></select></div>
+        <div><label for="ngayDon">Ngày</label><input type="date" id="ngayDon"></div>
+      </div>
+      <div id="khungDoi" class="hidden"><label for="doiVoi">Đổi ca với</label><select id="doiVoi"></select></div>
+      <label for="noiDungDon" id="lblDon">Lý do</label>
+      <input id="noiDungDon" maxlength="300" placeholder="VD: về quê có việc gia đình">
+      <button class="btn" id="btnGuiDon">Gửi đơn</button>
+      <div id="dsDon"></div>
     </div>
     <div class="card"><h3>Lịch ca cả quán (7 ngày tới)</h3><div id="lichChung"></div></div>
   </section>
@@ -222,6 +235,8 @@
         <div id="qlBB"></div></div>
 
       <div class="card"><h3>Xin đến trễ chờ duyệt</h3><div id="qlTre"></div></div>
+
+      <div class="card"><h3>Xin nghỉ / đổi ca chờ duyệt</h3><p class="muted">Đồng ý xong nhớ sửa trang Roster cho khớp.</p><div id="qlDon"></div></div>
 
       <div class="card">
         <div class="row" style="padding-top:0"><h3 style="margin:0">Ca chờ duyệt</h3><button class="sm ok" id="btnDuyetHet">Duyệt tất cả</button></div>
@@ -530,6 +545,7 @@ async function login(){
   S.ma = ma; S.pin = pin; S.ten = r.ten; save('cc_ma', ma);
   $('#pin').value = ''; $('#whoName').textContent = r.ten;
   showTab(S.tab);
+  if (r.soThongBao > 0) toast(`Bạn có ${r.soThongBao} thông báo mới, xem ở tab Ca làm`);
 }
 function logout(){ S.ma = S.pin = S.ten = ''; showTab(S.tab); }
 
@@ -537,6 +553,8 @@ async function loadCa(){
   if (!$('#ngayCa').value) $('#ngayCa').value = today();
   $('#ngayCa').min = today();
   if (!$('#ngayTre').value) $('#ngayTre').value = today();
+  if (!$('#ngayDon').value) $('#ngayDon').value = today();
+  $('#ngayDon').min = today();
   $('#ngayTre').min = today();
   try { renderCa(await call('caCuaToi', S.ma, S.pin)); } catch(e){ toast(e.message, true); }
 }
@@ -550,14 +568,37 @@ function lichHtml(list, admin){
 }
 function renderCa(d){
   $('#caCuaToi').innerHTML = d.cuaToi.length ? d.cuaToi.map(c => `<div class="row"><div><b>${ngayVN(c.ngay)}</b> · ${c.batDau}–${c.ketThuc}<br>
-      <span class="tag ${c.trangThai === DUYET ? 'ok' : 'wait'}">${esc(c.trangThai)}</span> <span class="muted">${esc(c.ghiChu)}</span></div>
-      ${c.trangThai !== DUYET ? `<button class="sm ghost" onclick="huyCa('${esc(c.id)}')">Hủy</button>` : ''}</div>`).join('')
+      <span class="tag ${c.trangThai === DUYET ? 'ok' : c.trangThai === 'Từ chối' ? 'bad' : 'wait'}">${esc(c.trangThai)}</span> <span class="muted">${esc(c.ghiChu)}</span></div>
+      ${c.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyCa('${esc(c.id)}')">Hủy</button>` : ''}</div>`).join('')
     : '<p class="muted">Bạn chưa đăng ký ca nào.</p>';
   $('#lichChung').innerHTML = lichHtml(d.lichChung, false);
+  if ((d.thongBao || []).length){
+    $('#dsTB').innerHTML = d.thongBao.map(t => `<div class="row"><span><span class="tag ${t.ok ? 'ok' : 'bad'}">${t.ok ? '✓' : '✗'}</span> ${esc(t.text)}</span></div>`).join('');
+    $('#cardTB').classList.remove('hidden');
+  } else if (d.thongBao) $('#cardTB').classList.add('hidden');
+  if (d.dongNghiep) $('#doiVoi').innerHTML = d.dongNghiep.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
+  const tg = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
+  $('#dsDon').innerHTML = (d.don || []).length ? '<div style="margin-top:12px">' + d.don.map(x => `<div class="row"><div><b>${esc(x.loai)}</b> · ${ngayVN(x.ngay)}${x.doiVoi ? ' · với ' + esc(x.doiVoi) : ''}<br>
+      <span class="tag ${tg(x.trangThai)}">${esc(x.trangThai)}</span> <span class="muted">${esc(x.noiDung)}</span></div>
+      ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyDon('${esc(x.id)}')">Hủy</button>` : ''}</div>`).join('') + '</div>' : '';
   const tag = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
   $('#dsXinTre').innerHTML = (d.xinTre || []).length ? '<div style="margin-top:12px">' + d.xinTre.map(x => `<div class="row"><div><b>${ngayVN(x.ngay)}</b> · trễ ${x.phut} phút<br>
       <span class="tag ${tag(x.trangThai)}">${esc(x.trangThai)}</span> <span class="muted">${esc(x.lyDo)}</span></div>
       ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyTre('${esc(x.id)}')">Hủy</button>` : ''}</div>`).join('') + '</div>' : '';
+}
+async function guiDon(){
+  renderCa(await call('guiDon', S.ma, S.pin, $('#loaiDon').value, $('#ngayDon').value, $('#doiVoi').value, $('#noiDungDon').value));
+  $('#noiDungDon').value = ''; toast('Đã gửi đơn, chờ chủ quán duyệt');
+}
+async function huyDon(id){
+  if (!await modal('Hủy đơn này?', '<p class="muted">Đơn chưa duyệt sẽ bị xóa.</p>', 'Hủy đơn')) return;
+  try { renderCa(await call('huyDon', S.ma, S.pin, id)); toast('Đã hủy'); } catch(e){ toast(e.message, true); }
+}
+function doiLoaiDon(){
+  const doi = $('#loaiDon').value === 'Đổi ca';
+  $('#khungDoi').classList.toggle('hidden', !doi);
+  $('#lblDon').textContent = doi ? 'Nội dung đổi ca' : 'Lý do';
+  $('#noiDungDon').placeholder = doi ? 'VD: em làm ca chiều thay bạn, bạn làm ca sáng thay em' : 'VD: về quê có việc gia đình';
 }
 async function guiXinTre(){
   renderCa(await call('xinTre', S.ma, S.pin, $('#ngayTre').value, $('#phutTre').value, $('#lyDoTre').value));
@@ -622,8 +663,12 @@ function renderQL(d){
     : '<p class="muted">Không có ai đang trong ca.</p>';
   $('#qlCho').innerHTML = d.caCho.length ? d.caCho.map(c => `<div class="row"><div><b>${esc(c.ten)}</b><br>${ngayVN(c.ngay)} · ${c.batDau}–${c.ketThuc}
       ${c.ghiChu ? `<br><span class="muted">${esc(c.ghiChu)}</span>` : ''}</div>
-      <div class="acts"><button class="sm ok" onclick="duyet('${esc(c.id)}')">Duyệt</button><button class="sm ghost" onclick="caForm('${esc(c.id)}')">Sửa</button><button class="sm ghost" onclick="xoaCa('${esc(c.id)}')">Xóa</button></div></div>`).join('')
+      <div class="acts"><button class="sm ok" onclick="duyet('${esc(c.id)}')">Duyệt</button><button class="sm ghost" onclick="caForm('${esc(c.id)}')">Sửa</button><button class="sm ghost" onclick="tuChoiCa('${esc(c.id)}')">Từ chối</button></div></div>`).join('')
     : '<p class="muted">Không có ca nào chờ duyệt.</p>';
+  $('#qlDon').innerHTML = (d.donCho || []).length ? d.donCho.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> · <span class="tag wait">${esc(x.loai)}</span><br>
+      ${ngayVN(x.ngay)}${x.doiVoi ? ' · đổi với <b>' + esc(x.doiVoi) + '</b>' : ''}<br><span class="muted">${esc(x.noiDung)}</span></div>
+      <div class="acts"><button class="sm ok" onclick="duyetDon('${esc(x.id)}',true)">Đồng ý</button><button class="sm ghost" onclick="duyetDon('${esc(x.id)}',false)">Từ chối</button></div></div>`).join('')
+    : '<p class="muted">Không có đơn nào chờ duyệt.</p>';
   $('#btnDuyetHet').classList.toggle('hidden', d.caCho.length < 2);
   $('#qlDuyet').innerHTML = lichHtml(d.caDuyet, true);
   $('#cardTC').classList.toggle('hidden', !d.tangCa.length);
@@ -741,6 +786,12 @@ async function chotRa(id){
   if (!await modal('Chốt giờ ra', html, 'Lưu')) return;
   try { renderQL(await call('adminChotRa', S.adminPin, id, $('#fRa').value, S.ip)); toast('Đã chốt giờ ra'); loadLuong(); } catch(e){ toast(e.message, true); }
 }
+async function duyetDon(id, dongY){
+  try { renderQL(await call('adminDuyetDon', S.adminPin, id, dongY, S.ip)); toast(dongY ? 'Đã đồng ý' : 'Đã từ chối'); } catch(e){ toast(e.message, true); }
+}
+async function tuChoiCa(id){
+  try { renderQL(await call('adminTuChoiCa', S.adminPin, id, S.ip)); toast('Đã từ chối'); } catch(e){ toast(e.message, true); }
+}
 async function duyetTre(id, dongY){
   try { renderQL(await call('adminDuyetTre', S.adminPin, id, dongY, S.ip)); toast(dongY ? 'Đã đồng ý' : 'Đã từ chối'); } catch(e){ toast(e.message, true); }
 }
@@ -790,6 +841,8 @@ async function init(){
   $('#btnLogout').onclick = logout;
   $('#btnDK').onclick = e => lock(e.currentTarget, dangKy);
   $('#btnXinTre').onclick = e => lock(e.currentTarget, guiXinTre);
+  $('#btnGuiDon').onclick = e => lock(e.currentTarget, guiDon);
+  $('#loaiDon').onchange = doiLoaiDon;
   $('#thang').onchange = loadCong;
   $('#btnQL').onclick = e => lock(e.currentTarget, qlLogin);
   $('#adminPin').onkeydown = e => { if (e.key === 'Enter') $('#btnQL').click(); };
