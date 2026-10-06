@@ -12,7 +12,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>PA staff</title>
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+<script src="face-api.js"></script>
 <style>
   :root{
     --nau:#6f4e37; --nau-dam:#4a3222; --kem:#f7f1ea; --trang:#fff; --chu:#2b211b; --mo:#8a7b70;
@@ -298,7 +298,7 @@
    ===================================================================== */
 const API_URL = 'https://script.google.com/macros/s/AKfycbwv-LwJq07oA4KH4NyA4fu1hWykZ0UQm6lrnMPkSuuuRbKcNrHNrxPzvMs08aldPHR3/exec';
 
-const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+const MODEL_URL = './';
 const $ = s => document.querySelector(s);
 const S = { ma:'', pin:'', ten:'', adminPin:'', ip:'', tab:'cc', ql:null, wifiOk:false };
 const DUYET = 'Đã duyệt';
@@ -368,11 +368,20 @@ let modelsReady = null;
 function taiModel(){
   if (!window.faceapi) return Promise.reject(new Error('Không tải được bộ nhận diện khuôn mặt. Kiểm tra mạng rồi tải lại trang.'));
   if (!modelsReady){
-    modelsReady = Promise.all([
+    const quaLau = new Promise((_, no) => setTimeout(() => no(new Error('het-gio')), 60000));
+    modelsReady = Promise.race([quaLau, Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-    ]).catch(() => { modelsReady = null; throw new Error('Không tải được bộ nhận diện khuôn mặt. Kiểm tra mạng rồi tải lại trang.'); });
+    ]).then(async () => {
+      // chạy thử 1 lần trên ảnh trống để trình duyệt chuẩn bị sẵn (lần quét thật nhanh hơn)
+      try { const c = document.createElement('canvas'); c.width = c.height = 160; await faceapi.detectSingleFace(c, OPTS()).withFaceLandmarks().withFaceDescriptor(); } catch(e){}
+    })]).catch(e => {
+      modelsReady = null;
+      throw new Error(e && e.message === 'het-gio'
+        ? 'Tải bộ nhận diện quá lâu (hơn 60 giây). Kiểm tra WiFi rồi bấm Quét lại.'
+        : 'Không tải được bộ nhận diện khuôn mặt. Kiểm tra mạng rồi bấm Quét lại.');
+    });
   }
   return modelsReady;
 }
@@ -384,11 +393,14 @@ async function moCamera(video){
     CAM.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user', width:{ ideal:640 }, height:{ ideal:480 } }, audio:false });
   } catch(e){ throw new Error('Không mở được camera. Hãy cho phép trang dùng camera rồi tải lại trang.'); }
   video.srcObject = CAM.stream;
+  const st = CAM.stream;
   try { await video.play(); } catch(e){}
   if (!video.videoWidth) await new Promise(r => { video.onloadedmetadata = () => r(); setTimeout(r, 3000); });
+  return st;
 }
 function dongCamera(){
   if (CAM.stream){ CAM.stream.getTracks().forEach(t => t.stop()); CAM.stream = null; }
+  ['#video', '#regVideo'].forEach(id => { const v = document.querySelector(id); if (v && v.srcObject) v.srcObject = null; });
 }
 function kc(a, b){ return Math.hypot(a.x - b.x, a.y - b.y); }
 function earMat(p){ return (kc(p[1], p[5]) + kc(p[2], p[4])) / (2 * kc(p[0], p[3])); }
@@ -412,35 +424,48 @@ function ketThuc(html){
   if (html != null) $('#ccResult').innerHTML = html;
   $('#btnScan').classList.remove('hidden');
 }
+// Kiểm tra WiFi, tải bộ nhận diện và mở camera CHẠY SONG SONG để vào quét nhanh hơn.
+// Máy chủ vẫn kiểm tra WiFi lần nữa lúc nhận diện, nên hiện camera trước không ảnh hưởng an toàn.
 async function batDauQuet(){
   const phien = ++SC.phien;
   SC.run = false; dongCamera();
   $('#ccResult').innerHTML = ''; $('#btnScan').classList.add('hidden'); $('#confirm').classList.add('hidden');
   $('#snap').classList.add('hidden'); $('#video').classList.remove('hidden'); camState('');
-  const w = $('#wifi'); w.className = 'badge'; w.textContent = 'Đang kiểm tra WiFi…';
-  hint('Đang chuẩn bị…');
-  try {
-    S.ip = await getIP();
+  const w = $('#wifi');
+  const datWifi = (ok, daCai) => {
+    w.className = 'badge ' + (ok ? 'ok' : 'bad');
+    w.textContent = !daCai ? 'Quán chưa cài WiFi chấm công' : ok ? '✓ Đang dùng WiFi của quán' : '✗ Chưa dùng WiFi của quán';
+  };
+  w.className = 'badge'; w.textContent = 'Đang kiểm tra WiFi…';
+  hint('Đang mở camera…');
+  // 1) WiFi: lấy địa chỉ mạng rồi hỏi máy chủ (chạy nền)
+  S.wifiP = (async () => {
+    S.ip = await getIP(); S.ipLuc = Date.now();
+    if (S.ip && load('wifi_ok_ip') === S.ip && phien === SC.phien) datWifi(true, true);   // lần trước mạng này đúng -> báo xanh ngay
     const d = await call('getInit', S.ip);
+    if (phien === SC.phien) datWifi(d.wifiOk, d.daCaiWifi);
+    save('wifi_ok_ip', d.wifiOk ? S.ip : '');
+    if (!d.wifiOk) throw new Error(d.daCaiWifi ? 'Hãy kết nối WiFi của quán, tắt 4G rồi bấm Quét lại.' : 'Báo chủ quán vào mục Quản lý để cài WiFi.');
+    return d;
+  })();
+  S.wifiP.catch(e => {
     if (phien !== SC.phien) return;
-    w.className = 'badge ' + (d.wifiOk ? 'ok' : 'bad');
-    w.textContent = !d.daCaiWifi ? 'Quán chưa cài WiFi chấm công' : d.wifiOk ? '✓ Đang dùng WiFi của quán' : '✗ Chưa dùng WiFi của quán';
-    if (!d.wifiOk){
-      hint('');
-      return ketThuc(`<div class="errbox">${d.daCaiWifi ? 'Hãy kết nối WiFi của quán, tắt 4G rồi bấm Quét lại.' : 'Báo chủ quán vào mục Quản lý để cài WiFi.'}</div>`);
-    }
-    hint('Đang tải bộ nhận diện… (lần đầu 10–30 giây)');
-    await taiModel();
-    if (phien !== SC.phien) return;
-    hint('Đang mở camera…');
-    await moCamera($('#video'));
-    if (phien !== SC.phien || S.tab !== 'cc'){ dongCamera(); return; }
+    if (w.textContent === 'Đang kiểm tra WiFi…'){ w.className = 'badge bad'; w.textContent = 'Không kiểm tra được WiFi'; }
+    SC.phien++; hint(''); camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`);
+  });
+  // 2) Camera + bộ nhận diện cùng lúc
+  try {
+    const camP = moCamera($('#video'));
+    const mdP = taiModel();
+    let daMo = false;
+    camP.then(() => { daMo = true; if (phien === SC.phien && !SC.run) hint('Đang tải bộ nhận diện…'); }).catch(() => {});
+    setTimeout(() => { if (phien === SC.phien && !SC.run && daMo) hint('Đang tải bộ nhận diện… (lần đầu 10–30 giây)'); }, 2500);
+    const [st] = await Promise.all([camP, mdP]);
+    if (phien !== SC.phien || S.tab !== 'cc'){ if (st && CAM.stream === st) dongCamera(); return; }
     resetBlink(); SC.run = true;
     vongQuet(phien);
   } catch(e){
-    if (phien === SC.phien){
-      if (w.textContent === 'Đang kiểm tra WiFi…'){ w.className = 'badge bad'; w.textContent = 'Không kiểm tra được WiFi'; }
-      hint(''); camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`); }
+    if (phien === SC.phien){ hint(''); camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`); }
   }
 }
 async function vongQuet(phien){
@@ -479,7 +504,8 @@ async function nhanDien(phien){
     const anh = chupAnh(video);
     $('#snap').src = anh; $('#snap').classList.remove('hidden'); $('#video').classList.add('hidden');
     dongCamera();
-    S.ip = await getIP();
+    await S.wifiP;
+    if (!S.ip || Date.now() - (S.ipLuc || 0) > 60000){ S.ip = await getIP(); S.ipLuc = Date.now(); }
     const r = await call('nhanDien', Array.from(d.descriptor), S.ip);
     if (phien !== SC.phien) return;
     xacNhan(r, anh, phien);
