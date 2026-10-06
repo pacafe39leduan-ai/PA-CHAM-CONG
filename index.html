@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6f4e37">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PA staff">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>PA staff</title>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+<style>
+  :root{
+    --nau:#6f4e37; --nau-dam:#4a3222; --kem:#f7f1ea; --trang:#fff; --chu:#2b211b; --mo:#8a7b70;
+    --xanh:#2e7d4f; --xanh-nhat:#e3f3e9; --do:#c0392b; --do-nhat:#fbe7e4; --vang:#b7791f; --vang-nhat:#fdf2dc;
+    --vien:#e6dcd2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--kem);color:var(--chu);font-size:16px}
+  header{background:var(--nau);color:#fff;padding:12px 16px 8px;text-align:center}
+  .brand{font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px}
+  .brand .logo{width:40px;height:40px;border-radius:50%;background:#fff}
+  #clock{font-size:30px;font-weight:700;letter-spacing:1px;margin-top:2px;font-variant-numeric:tabular-nums}
+  #date{font-size:13px;opacity:.85}
+  nav.tabs{display:flex;background:var(--nau-dam);position:sticky;top:0;z-index:5}
+  nav.tabs button{flex:1;background:none;border:0;color:#e9dccf;padding:12px 4px;font-size:14px;font-weight:600;border-bottom:3px solid transparent}
+  nav.tabs button.on{color:#fff;border-bottom-color:#e0b98a}
+  main{max-width:560px;margin:0 auto;padding:14px 16px 60px}
+  .card{background:var(--trang);border:1px solid var(--vien);border-radius:14px;padding:16px;margin-bottom:14px}
+  h3{margin:0 0 10px;font-size:16px;color:var(--nau-dam)}
+  label{display:block;font-size:14px;color:var(--mo);margin:10px 0 4px}
+  input,select{width:100%;padding:12px;border:1px solid var(--vien);border-radius:10px;font-size:16px;background:#fff;color:var(--chu)}
+  .two{display:flex;gap:10px}.two>*{flex:1}
+  button{font-family:inherit}
+  .btn{display:block;width:100%;padding:13px;border:0;border-radius:10px;background:var(--nau);color:#fff;font-size:16px;font-weight:700;margin-top:12px;text-align:center;text-decoration:none}
+  .btn:disabled{opacity:.55}
+  .btn.ghost{background:transparent;color:var(--nau);border:1px solid var(--nau)}
+  .sm{padding:7px 12px;border-radius:8px;border:0;background:var(--nau);color:#fff;font-size:14px;font-weight:600;white-space:nowrap}
+  .sm.ghost{background:transparent;border:1px solid var(--vien);color:var(--chu)}
+  .sm.ok{background:var(--xanh)}
+  .link{background:none;border:0;color:var(--nau);text-decoration:underline;font-size:14px;padding:0}
+  .hidden{display:none!important}
+  .muted{color:var(--mo);font-size:14px;margin:6px 0}
+  .badge{display:block;text-align:center;padding:10px;border-radius:10px;font-weight:700;font-size:15px;background:var(--kem)}
+  .badge.ok{background:var(--xanh-nhat);color:var(--xanh)} .badge.bad{background:var(--do-nhat);color:var(--do)}
+  .okbox,.errbox{padding:12px;border-radius:10px;margin-top:12px;font-weight:600;text-align:center}
+  .okbox{background:var(--xanh-nhat);color:var(--xanh)} .errbox{background:var(--do-nhat);color:var(--do)}
+
+  /* camera */
+  .cam{position:relative;width:260px;height:260px;margin:16px auto 8px;border-radius:50%;overflow:hidden;background:#1d1510;border:6px solid var(--vien);transition:border-color .2s}
+  .cam.face{border-color:#e0b98a} .cam.go{border-color:var(--xanh)} .cam.err{border-color:var(--do)}
+  .cam video,.cam img{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+  .hint{text-align:center;font-size:19px;font-weight:700;min-height:28px;margin:6px 0;color:var(--nau-dam)}
+  .who{text-align:center;margin-top:6px}
+  .who .ten{font-size:24px;font-weight:800}
+  .who .act{display:inline-block;margin-top:6px;padding:6px 16px;border-radius:20px;font-weight:800;color:#fff}
+  .act.vao{background:var(--xanh)} .act.ra{background:var(--do)}
+  .count{font-size:15px;color:var(--mo);margin-top:8px}
+
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--vien)}
+  .row:last-child{border-bottom:0}
+  .acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:3px}
+  .tag.ok{background:var(--xanh-nhat);color:var(--xanh)} .tag.wait{background:var(--vang-nhat);color:var(--vang)} .tag.bad{background:var(--do-nhat);color:var(--do)}
+  .day{margin-bottom:10px}.dayh{font-weight:700;color:var(--nau);margin-bottom:4px}
+  .li{padding:4px 0 4px 10px;border-left:3px solid var(--vien);font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+  th,td{padding:8px 4px;border-bottom:1px solid var(--vien);text-align:left}
+  th{color:var(--mo);font-weight:600}
+  td.r,th.r{text-align:right}
+  .late{color:var(--do);font-weight:700}
+  .sum{display:flex;gap:10px;margin-top:10px}
+  .sum>div{flex:1;background:var(--kem);border-radius:10px;padding:10px;text-align:center}
+  .sum span{display:block;font-size:13px;color:var(--mo)} .sum b{font-size:20px;color:var(--nau-dam)}
+  code{background:var(--kem);padding:2px 6px;border-radius:6px}
+  .bar{height:8px;background:var(--kem);border-radius:8px;overflow:hidden;margin-top:8px}
+  .bar>div{height:100%;width:0;background:var(--xanh);transition:width .3s}
+  header{padding-top:calc(12px + env(safe-area-inset-top))}
+  #install{display:flex;gap:12px;align-items:center}
+  #install img{width:48px;height:48px;border-radius:12px;flex:none}
+  #install .txt{flex:1;font-size:14px;line-height:1.4}
+  #install .x{background:none;border:0;color:var(--mo);font-size:22px;padding:0 4px;align-self:flex-start}
+  #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(120px);background:#2b211b;color:#fff;padding:12px 18px;border-radius:10px;font-weight:600;transition:.25s;max-width:90%;z-index:50}
+  #toast.show{transform:translateX(-50%) translateY(0)} #toast.bad{background:var(--do)}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:30}
+  .overlay .card{width:100%;max-width:420px;margin:0;max-height:100%;overflow:auto}
+  .mbtn{display:flex;gap:10px}.mbtn .btn{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="icon-192.png" alt="" class="logo"><span id="tenQuan">PA staff</span></div>
+  <div id="clock">--:--:--</div>
+  <div id="date"></div>
+</header>
+<nav class="tabs">
+  <button data-tab="cc" class="on">Chấm công</button>
+  <button data-tab="ca">Ca làm</button>
+  <button data-tab="cong">Công của tôi</button>
+  <button data-tab="ql">Quản lý</button>
+</nav>
+
+<main>
+  <!-- ===== Tab chấm công bằng khuôn mặt ===== -->
+  <section id="tab-cc" class="tab">
+    <div class="card">
+      <div id="wifi" class="badge">Đang kiểm tra WiFi…</div>
+      <div class="cam" id="cam"><video id="video" playsinline muted autoplay></video><img id="snap" class="hidden" alt=""></div>
+      <div class="hint" id="hint">Đang chuẩn bị…</div>
+
+      <div id="confirm" class="who hidden">
+        <div class="ten" id="cTen"></div>
+        <div class="act" id="cAct"></div>
+        <div class="count" id="cCount"></div>
+        <button class="btn ghost" id="btnKhong">Không phải tôi</button>
+      </div>
+
+      <div id="ccResult"></div>
+      <button class="btn hidden" id="btnScan">Quét lại</button>
+      <p class="muted" style="text-align:center;margin-top:12px">Kết nối WiFi quán, tắt 4G. Nhìn thẳng camera, nhắm mắt 1 giây rồi mở ra.</p>
+    </div>
+    <div class="card hidden" id="install">
+      <img src="icon-192.png" alt="">
+      <div class="txt" id="installTxt"></div>
+      <button class="x" id="installX" aria-label="Đóng">×</button>
+    </div>
+  </section>
+
+  <!-- ===== Đăng nhập cho tab Ca làm / Công của tôi ===== -->
+  <section id="login" class="card hidden">
+    <h3>Đăng nhập</h3>
+    <label for="nv">Tên của bạn</label>
+    <select id="nv"><option value="">Đang tải…</option></select>
+    <label for="pin">Mã PIN</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+    <button class="btn" id="btnLogin">Đăng nhập</button>
+  </section>
+  <div id="who" class="card hidden" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px">
+    <span>Xin chào <b id="whoName"></b></span>
+    <button class="link" id="btnLogout">Đổi người</button>
+  </div>
+
+  <!-- ===== Tab ca làm ===== -->
+  <section id="tab-ca" class="tab hidden">
+    <div class="card">
+      <h3>Đăng ký ca</h3>
+      <label for="ngayCa">Ngày</label>
+      <input type="date" id="ngayCa">
+      <div class="two">
+        <div><label for="bdCa">Bắt đầu</label><input type="time" id="bdCa" value="07:00"></div>
+        <div><label for="ktCa">Kết thúc</label><input type="time" id="ktCa" value="12:00"></div>
+      </div>
+      <label for="gcCa">Ghi chú (không bắt buộc)</label>
+      <input id="gcCa" maxlength="200" placeholder="VD: có thể đổi ca với bạn B">
+      <button class="btn" id="btnDK">Gửi đăng ký</button>
+    </div>
+    <div class="card"><h3>Ca của tôi</h3><div id="caCuaToi"><p class="muted">Đang tải…</p></div></div>
+    <div class="card"><h3>Lịch ca cả quán (7 ngày tới)</h3><div id="lichChung"></div></div>
+  </section>
+
+  <!-- ===== Tab công của tôi ===== -->
+  <section id="tab-cong" class="tab hidden">
+    <div class="card">
+      <label for="thang" style="margin-top:0">Tháng</label>
+      <select id="thang"></select>
+      <div id="congBody"></div>
+    </div>
+  </section>
+
+  <!-- ===== Tab quản lý ===== -->
+  <section id="tab-ql" class="tab hidden">
+    <div id="qlLogin" class="card">
+      <h3>Dành cho chủ quán</h3>
+      <label for="adminPin">Mã quản lý</label>
+      <input id="adminPin" type="password" inputmode="numeric" autocomplete="off">
+      <button class="btn" id="btnQL">Vào quản lý</button>
+    </div>
+
+    <div id="qlPanel" class="hidden">
+      <div class="card">
+        <h3>WiFi của quán</h3>
+        <div id="qlWifi"></div>
+        <button class="btn" id="btnWifiThay">Đặt mạng này làm WiFi quán</button>
+        <button class="btn ghost" id="btnWifiThem">Thêm mạng này (quán có 2 WiFi)</button>
+        <p class="muted">Chỉ bấm khi bạn <b>đang ở quán</b> và điện thoại <b>đang bắt WiFi quán</b> (tắt 4G).</p>
+      </div>
+
+      <div class="card">
+        <h3>Khuôn mặt nhân viên</h3>
+        <p class="muted">Mỗi người cần đăng ký một lần. Nên đăng ký ngay tại quán, đủ sáng, không đeo khẩu trang.</p>
+        <div id="qlMat"></div>
+      </div>
+
+      <div class="card"><h3>Đang trong ca / quên chấm ra</h3><div id="qlMo"></div></div>
+
+      <div class="card">
+        <div class="row" style="padding-top:0"><h3 style="margin:0">Ca chờ duyệt</h3><button class="sm ok" id="btnDuyetHet">Duyệt tất cả</button></div>
+        <div id="qlCho"></div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="padding-top:0"><h3 style="margin:0">Lịch ca đã duyệt</h3><button class="sm" id="btnThemCa">+ Xếp ca</button></div>
+        <div id="qlDuyet"></div>
+      </div>
+
+      <div class="card">
+        <h3>Bảng lương</h3>
+        <select id="thangQL"></select>
+        <div id="luongBody"></div>
+        <button class="btn ghost" id="btnXuat">Xuất bảng lương ra Google Sheets</button>
+        <div id="luongLink"></div>
+      </div>
+
+      <div class="card">
+        <h3>Khác</h3>
+        <p class="muted">Thêm/sửa nhân viên, mã PIN, lương giờ và sửa giờ công trực tiếp trong file Google Sheets.</p>
+        <a class="btn ghost" id="linkSheet" target="_blank" rel="noopener">Mở file Google Sheets</a>
+        <button class="btn ghost" id="btnDoiPin">Đổi mã quản lý</button>
+        <button class="btn ghost" id="btnQLOut">Thoát quản lý</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Đăng ký khuôn mặt -->
+<div id="reg" class="overlay hidden">
+  <div class="card">
+    <h3 id="regTitle">Đăng ký khuôn mặt</h3>
+    <div class="cam" id="regCam"><video id="regVideo" playsinline muted autoplay></video></div>
+    <div class="hint" id="regHint"></div>
+    <div class="bar"><div id="regBar"></div></div>
+    <button class="btn ghost" id="regClose">Hủy</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="modal" class="overlay hidden">
+  <div class="card">
+    <h3 id="mTitle"></h3>
+    <div id="mBody"></div>
+    <div class="mbtn"><button class="btn ghost" id="mCancel">Hủy</button><button class="btn" id="mOk">Đồng ý</button></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   DÁN LINK ỨNG DỤNG WEB (kết thúc bằng /exec) CỦA APPS SCRIPT VÀO ĐÂY
+   ===================================================================== */
+const API_URL = 'DAN_LINK_EXEC_VAO_DAY';
+
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+const $ = s => document.querySelector(s);
+const S = { ma:'', pin:'', ten:'', adminPin:'', ip:'', tab:'cc', ql:null, wifiOk:false };
+const DUYET = 'Đã duyệt';
+
+// ---------------- tiện ích ----------------
+async function call(fn, ...args){
+  if (!/^https:\/\/script\.google\.com\//.test(API_URL)) throw new Error('Chưa dán link máy chủ (API_URL) vào file index.html.');
+  let r, j;
+  try { r = await fetch(API_URL, { method:'POST', body: JSON.stringify({ fn, args }) }); }
+  catch(e){ throw new Error('Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'); }
+  try { j = await r.json(); }
+  catch(e){ throw new Error('Máy chủ trả lời không hợp lệ. Kiểm tra lại link API_URL và quyền "Bất kỳ ai" khi triển khai.'); }
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function money(n){ return Math.round(n || 0).toLocaleString('vi-VN') + 'đ'; }
+function pad(n){ return ('0' + n).slice(-2); }
+function today(){ const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); }
+function ngayVN(s){ const p = s.split('-'); const t = ['CN','T2','T3','T4','T5','T6','T7'][new Date(+p[0], p[1]-1, +p[2]).getDay()]; return t + ' ' + p[2] + '/' + p[1]; }
+function save(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
+function load(k){ try { return localStorage.getItem(k) || ''; } catch(e){ return ''; } }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toast(msg, bad){
+  const t = $('#toast'); t.textContent = msg; t.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 4000);
+}
+async function lock(btn, fn){
+  if (btn.disabled) return; const old = btn.textContent; btn.disabled = true; btn.textContent = 'Đang xử lý…';
+  try { await fn(); } catch(e){ toast(e.message, true); } finally { btn.disabled = false; if (btn.textContent === 'Đang xử lý…') btn.textContent = old; }
+}
+async function getIP(){
+  for (const u of ['https://api.ipify.org?format=json', 'https://ipv4.icanhazip.com']){
+    try {
+      const r = await fetch(u, { cache:'no-store' });
+      const m = (await r.text()).match(/\d{1,3}(\.\d{1,3}){3}/);
+      if (m) return m[0];
+    } catch(e){}
+  }
+  return '';
+}
+function modal(title, html, okLabel){
+  return new Promise(res => {
+    $('#mTitle').textContent = title; $('#mBody').innerHTML = html; $('#mOk').textContent = okLabel || 'Đồng ý';
+    $('#modal').classList.remove('hidden');
+    const done = v => { $('#modal').classList.add('hidden'); $('#mOk').onclick = $('#mCancel').onclick = null; res(v); };
+    $('#mOk').onclick = () => done(true); $('#mCancel').onclick = () => done(false);
+  });
+}
+function tick(){
+  const d = new Date();
+  $('#clock').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  $('#date').textContent = ['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'][d.getDay()] + ', ' + pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
+}
+function fillMonths(sel){
+  const d = new Date(); let h = '';
+  for (let i = 0; i < 6; i++){
+    const x = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    h += `<option value="${x.getFullYear()}-${pad(x.getMonth()+1)}">Tháng ${x.getMonth()+1}/${x.getFullYear()}</option>`;
+  }
+  sel.innerHTML = h;
+}
+
+// ---------------- camera & nhận diện ----------------
+const CAM = { stream: null };
+let modelsReady = null;
+function taiModel(){
+  if (!window.faceapi) return Promise.reject(new Error('Không tải được bộ nhận diện khuôn mặt. Kiểm tra mạng rồi tải lại trang.'));
+  if (!modelsReady){
+    modelsReady = Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]).catch(() => { modelsReady = null; throw new Error('Không tải được bộ nhận diện khuôn mặt. Kiểm tra mạng rồi tải lại trang.'); });
+  }
+  return modelsReady;
+}
+const OPTS = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+async function moCamera(video){
+  dongCamera();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Trình duyệt không hỗ trợ camera. Hãy mở bằng Safari (iPhone) hoặc Chrome (Android).');
+  try {
+    CAM.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user', width:{ ideal:640 }, height:{ ideal:480 } }, audio:false });
+  } catch(e){ throw new Error('Không mở được camera. Hãy cho phép trang dùng camera rồi tải lại trang.'); }
+  video.srcObject = CAM.stream;
+  try { await video.play(); } catch(e){}
+  if (!video.videoWidth) await new Promise(r => { video.onloadedmetadata = () => r(); setTimeout(r, 3000); });
+}
+function dongCamera(){
+  if (CAM.stream){ CAM.stream.getTracks().forEach(t => t.stop()); CAM.stream = null; }
+}
+function kc(a, b){ return Math.hypot(a.x - b.x, a.y - b.y); }
+function earMat(p){ return (kc(p[1], p[5]) + kc(p[2], p[4])) / (2 * kc(p[0], p[3])); }
+function ear(lm){ return (earMat(lm.getLeftEye()) + earMat(lm.getRightEye())) / 2; }
+function chupAnh(video){
+  const k = Math.min(1, 480 / Math.max(video.videoWidth, video.videoHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(video.videoWidth * k); c.height = Math.round(video.videoHeight * k);
+  c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.75);
+}
+
+// ---------------- chấm công bằng khuôn mặt ----------------
+const SC = { run:false, base:0, frames:0, closed:false, closedAt:0, phien:0 };
+function hint(t){ $('#hint').textContent = t; }
+function camState(s){ $('#cam').className = 'cam' + (s ? ' ' + s : ''); }
+function resetBlink(){ SC.base = 0; SC.frames = 0; SC.closed = false; }
+function ketThuc(html){
+  SC.run = false; dongCamera();
+  $('#confirm').classList.add('hidden');
+  if (html != null) $('#ccResult').innerHTML = html;
+  $('#btnScan').classList.remove('hidden');
+}
+async function batDauQuet(){
+  const phien = ++SC.phien;
+  SC.run = false; dongCamera();
+  $('#ccResult').innerHTML = ''; $('#btnScan').classList.add('hidden'); $('#confirm').classList.add('hidden');
+  $('#snap').classList.add('hidden'); $('#video').classList.remove('hidden'); camState('');
+  const w = $('#wifi'); w.className = 'badge'; w.textContent = 'Đang kiểm tra WiFi…';
+  hint('Đang chuẩn bị…');
+  try {
+    S.ip = await getIP();
+    const d = await call('getInit', S.ip);
+    if (phien !== SC.phien) return;
+    w.className = 'badge ' + (d.wifiOk ? 'ok' : 'bad');
+    w.textContent = !d.daCaiWifi ? 'Quán chưa cài WiFi chấm công' : d.wifiOk ? '✓ Đang dùng WiFi của quán' : '✗ Chưa dùng WiFi của quán';
+    if (!d.wifiOk){
+      hint('');
+      return ketThuc(`<div class="errbox">${d.daCaiWifi ? 'Hãy kết nối WiFi của quán, tắt 4G rồi bấm Quét lại.' : 'Báo chủ quán vào mục Quản lý để cài WiFi.'}</div>`);
+    }
+    hint('Đang tải bộ nhận diện… (lần đầu 10–30 giây)');
+    await taiModel();
+    if (phien !== SC.phien) return;
+    hint('Đang mở camera…');
+    await moCamera($('#video'));
+    if (phien !== SC.phien || S.tab !== 'cc'){ dongCamera(); return; }
+    resetBlink(); SC.run = true;
+    vongQuet(phien);
+  } catch(e){
+    if (phien === SC.phien){
+      if (w.textContent === 'Đang kiểm tra WiFi…'){ w.className = 'badge bad'; w.textContent = 'Không kiểm tra được WiFi'; }
+      hint(''); camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`); }
+  }
+}
+async function vongQuet(phien){
+  if (!SC.run || phien !== SC.phien) return;
+  const video = $('#video');
+  try {
+    const dets = await faceapi.detectAllFaces(video, OPTS()).withFaceLandmarks();
+    if (!SC.run || phien !== SC.phien) return;
+    if (!dets.length){ hint('Đưa khuôn mặt vào khung tròn'); camState(''); resetBlink(); }
+    else if (dets.length > 1){ hint('Chỉ một người trong khung hình'); camState('err'); resetBlink(); }
+    else if (dets[0].detection.box.width / video.videoWidth < 0.25){ hint('Đưa điện thoại lại gần hơn'); camState('face'); resetBlink(); }
+    else {
+      camState('face');
+      const e = ear(dets[0].landmarks);
+      SC.frames++;
+      if (!SC.closed) SC.base = Math.max(e, SC.base * 0.98);
+      if (SC.frames < 4) hint('Giữ yên khuôn mặt…');
+      else if (!SC.closed){
+        hint('Nhắm mắt 1 giây rồi mở ra');
+        if (e < SC.base * 0.72){ SC.closed = true; SC.closedAt = Date.now(); }
+      } else {
+        hint('Mở mắt ra');
+        if (e > SC.base * 0.85){ SC.run = false; return nhanDien(phien); }
+        if (Date.now() - SC.closedAt > 5000) resetBlink();
+      }
+    }
+  } catch(err){}
+  setTimeout(() => vongQuet(phien), 50);
+}
+async function nhanDien(phien){
+  camState('go'); hint('Đang nhận diện…');
+  const video = $('#video');
+  try {
+    const d = await faceapi.detectSingleFace(video, OPTS()).withFaceLandmarks().withFaceDescriptor();
+    if (!d) throw new Error('Mất khuôn mặt trong khung hình. Hãy thử lại.');
+    const anh = chupAnh(video);
+    $('#snap').src = anh; $('#snap').classList.remove('hidden'); $('#video').classList.add('hidden');
+    dongCamera();
+    S.ip = await getIP();
+    const r = await call('nhanDien', Array.from(d.descriptor), S.ip);
+    if (phien !== SC.phien) return;
+    xacNhan(r, anh, phien);
+  } catch(e){
+    if (phien !== SC.phien) return;
+    hint(''); camState('err');
+    const them = /Không nhận ra/.test(e.message) ? ' Nếu bạn chưa đăng ký khuôn mặt, hãy báo chủ quán.' : '';
+    ketThuc(`<div class="errbox">${esc(e.message + them)}</div>`);
+  }
+}
+async function xacNhan(r, anh, phien){
+  hint('');
+  $('#cTen').textContent = r.ten;
+  const a = $('#cAct');
+  a.className = 'act ' + r.loai;
+  a.textContent = r.loai === 'vao' ? 'VÀO CA' : `RA CA (vào lúc ${r.gioVao})`;
+  $('#confirm').classList.remove('hidden');
+  let huy = false;
+  $('#btnKhong').onclick = () => { huy = true; };
+  for (let i = 3; i > 0; i--){
+    $('#cCount').textContent = `Tự động lưu sau ${i} giây…`;
+    for (let k = 0; k < 10; k++){ await sleep(100); if (huy || phien !== SC.phien) break; }
+    if (huy || phien !== SC.phien) break;
+  }
+  if (phien !== SC.phien) return;
+  if (huy){ camState(''); return ketThuc('<div class="errbox">Đã hủy. Bấm Quét lại và nhìn thẳng camera.</div>'); }
+  $('#cCount').textContent = 'Đang lưu…'; $('#btnKhong').classList.add('hidden');
+  try {
+    const k = await call('chamCongMat', r.token, anh);
+    const msg = k.loai === 'vao'
+      ? `${k.ten} đã VÀO CA lúc ${k.gio}` + (k.muon > 0 ? ` (muộn ${k.muon} phút)` : '')
+      : `${k.ten} đã RA CA lúc ${k.gio} — làm ${k.soGio} giờ`;
+    ketThuc(`<div class="okbox">${esc(msg)}</div>`);
+  } catch(e){ camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`); }
+  $('#btnKhong').classList.remove('hidden');
+}
+
+// ---------------- điều hướng ----------------
+function showTab(t){
+  S.tab = t;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('.tab').forEach(x => x.classList.add('hidden'));
+  if (t !== 'cc'){ SC.phien++; SC.run = false; dongCamera(); }
+  const canLogin = t === 'ca' || t === 'cong', logged = !!S.ma;
+  $('#login').classList.toggle('hidden', !canLogin || logged);
+  $('#who').classList.toggle('hidden', !canLogin || !logged);
+  if (canLogin && !logged) return;
+  $('#tab-' + t).classList.remove('hidden');
+  if (t === 'cc') batDauQuet(); else if (t === 'ca') loadCa(); else if (t === 'cong') loadCong(); else loadQL();
+}
+
+// ---------------- nhân viên: ca làm & công ----------------
+async function login(){
+  const ma = $('#nv').value, pin = $('#pin').value.trim();
+  if (!ma) return toast('Hãy chọn tên của bạn', true);
+  if (!pin) return toast('Hãy nhập mã PIN', true);
+  const r = await call('dangNhap', ma, pin);
+  S.ma = ma; S.pin = pin; S.ten = r.ten; save('cc_ma', ma);
+  $('#pin').value = ''; $('#whoName').textContent = r.ten;
+  showTab(S.tab);
+}
+function logout(){ S.ma = S.pin = S.ten = ''; showTab(S.tab); }
+
+async function loadCa(){
+  if (!$('#ngayCa').value) $('#ngayCa').value = today();
+  $('#ngayCa').min = today();
+  try { renderCa(await call('caCuaToi', S.ma, S.pin)); } catch(e){ toast(e.message, true); }
+}
+function lichHtml(list, admin){
+  if (!list.length) return '<p class="muted">Chưa có ca nào.</p>';
+  const g = {}; list.forEach(c => (g[c.ngay] = g[c.ngay] || []).push(c));
+  return Object.keys(g).map(d => `<div class="day"><div class="dayh">${ngayVN(d)}</div>` +
+    g[d].map(c => `<div class="li"><span>${c.batDau}–${c.ketThuc} · ${esc(c.ten)}</span>` +
+      (admin ? `<span class="acts"><button class="sm ghost" onclick="caForm('${esc(c.id)}')">Sửa</button><button class="sm ghost" onclick="xoaCa('${esc(c.id)}')">Xóa</button></span>` : '') +
+      `</div>`).join('') + '</div>').join('');
+}
+function renderCa(d){
+  $('#caCuaToi').innerHTML = d.cuaToi.length ? d.cuaToi.map(c => `<div class="row"><div><b>${ngayVN(c.ngay)}</b> · ${c.batDau}–${c.ketThuc}<br>
+      <span class="tag ${c.trangThai === DUYET ? 'ok' : 'wait'}">${esc(c.trangThai)}</span> <span class="muted">${esc(c.ghiChu)}</span></div>
+      ${c.trangThai !== DUYET ? `<button class="sm ghost" onclick="huyCa('${esc(c.id)}')">Hủy</button>` : ''}</div>`).join('')
+    : '<p class="muted">Bạn chưa đăng ký ca nào.</p>';
+  $('#lichChung').innerHTML = lichHtml(d.lichChung, false);
+}
+async function dangKy(){
+  renderCa(await call('dangKyCa', S.ma, S.pin, $('#ngayCa').value, $('#bdCa').value, $('#ktCa').value, $('#gcCa').value));
+  $('#gcCa').value = ''; toast('Đã gửi đăng ký, chờ chủ quán duyệt');
+}
+async function huyCa(id){
+  if (!await modal('Hủy ca này?', '<p class="muted">Ca chưa được duyệt sẽ bị xóa.</p>', 'Hủy ca')) return;
+  try { renderCa(await call('huyCa', S.ma, S.pin, id)); toast('Đã hủy ca'); } catch(e){ toast(e.message, true); }
+}
+async function loadCong(){
+  $('#congBody').innerHTML = '<p class="muted">Đang tải…</p>';
+  try {
+    const d = await call('congCuaToi', S.ma, S.pin, $('#thang').value);
+    $('#congBody').innerHTML = `<div class="sum"><div><span>Tổng giờ</span><b>${d.tongGio}</b></div><div><span>Tạm tính</span><b>${money(d.tongTien)}</b></div></div>` +
+      (d.ds.length ? `<table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
+        d.ds.map(r => `<tr><td>${r.ngay}</td><td>${r.vao}${r.muon > 0 ? ` <span class="late">+${r.muon}′</span>` : ''}</td><td>${r.ra}</td><td class="r">${r.gio || '—'}</td><td class="r">${r.tien ? money(r.tien) : '—'}</td></tr>`).join('') +
+        `</tbody></table><p class="muted">+N′ = số phút đi muộn so với ca đã duyệt.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
+  } catch(e){ $('#congBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
+}
+
+// ---------------- chủ quán ----------------
+async function loadQL(){
+  const logged = !!S.adminPin;
+  $('#qlLogin').classList.toggle('hidden', logged); $('#qlPanel').classList.toggle('hidden', !logged);
+  if (!logged) return;
+  try { S.ip = await getIP(); renderQL(await call('adminVao', S.adminPin, S.ip)); loadLuong(); } catch(e){ toast(e.message, true); }
+}
+async function qlLogin(){
+  const p = $('#adminPin').value.trim(); if (!p) return toast('Nhập mã quản lý', true);
+  S.ip = await getIP();
+  const d = await call('adminVao', p, S.ip);
+  S.adminPin = p; $('#adminPin').value = '';
+  $('#qlLogin').classList.add('hidden'); $('#qlPanel').classList.remove('hidden');
+  renderQL(d); loadLuong();
+}
+function renderQL(d){
+  S.ql = d;
+  $('#qlWifi').innerHTML = (d.wifi.length
+      ? d.wifi.map(ip => `<div class="row"><span><code>${esc(ip)}</code> ${ip === d.ipHienTai ? '<span class="tag ok">bạn đang dùng</span>' : ''}</span><button class="sm ghost" onclick="wifi('xoa','${esc(ip)}')">Xóa</button></div>`).join('')
+      : '<div class="errbox" style="margin-top:0">Chưa cài WiFi quán — nhân viên chưa chấm công được.</div>') +
+    `<p class="muted">Mạng bạn đang dùng: <code>${esc(d.ipHienTai || 'không xác định')}</code></p>`;
+  $('#qlMat').innerHTML = d.nhanVien.length ? d.nhanVien.map(n => `<div class="row"><div><b>${esc(n.ten)}</b><br>
+      ${n.soMau ? '<span class="tag ok">Đã đăng ký</span>' : '<span class="tag bad">Chưa đăng ký</span>'}</div>
+      <div class="acts"><button class="sm ${n.soMau ? 'ghost' : ''}" onclick="dangKyMat('${esc(n.ma)}')">${n.soMau ? 'Đăng ký lại' : 'Đăng ký'}</button>
+      ${n.soMau ? `<button class="sm ghost" onclick="xoaMat('${esc(n.ma)}')">Xóa</button>` : ''}</div></div>`).join('')
+    : '<p class="muted">Chưa có nhân viên. Thêm nhân viên trong file Google Sheets.</p>';
+  $('#qlMo').innerHTML = d.dangMo.length ? d.dangMo.map(r => `<div class="row"><div><b>${esc(r.ten)}</b><br><span class="muted">Vào ${esc(r.vao)}</span>
+      ${r.quen ? '<span class="tag bad">Quên chấm ra</span>' : ''}</div><button class="sm ${r.quen ? '' : 'ghost'}" onclick="chotRa('${esc(r.id)}')">Chốt giờ ra</button></div>`).join('')
+    : '<p class="muted">Không có ai đang trong ca.</p>';
+  $('#qlCho').innerHTML = d.caCho.length ? d.caCho.map(c => `<div class="row"><div><b>${esc(c.ten)}</b><br>${ngayVN(c.ngay)} · ${c.batDau}–${c.ketThuc}
+      ${c.ghiChu ? `<br><span class="muted">${esc(c.ghiChu)}</span>` : ''}</div>
+      <div class="acts"><button class="sm ok" onclick="duyet('${esc(c.id)}')">Duyệt</button><button class="sm ghost" onclick="caForm('${esc(c.id)}')">Sửa</button><button class="sm ghost" onclick="xoaCa('${esc(c.id)}')">Xóa</button></div></div>`).join('')
+    : '<p class="muted">Không có ca nào chờ duyệt.</p>';
+  $('#btnDuyetHet').classList.toggle('hidden', d.caCho.length < 2);
+  $('#qlDuyet').innerHTML = lichHtml(d.caDuyet, true);
+  $('#linkSheet').href = d.linkSheet;
+}
+
+// Đăng ký khuôn mặt: lấy 5 mẫu ở các góc hơi khác nhau
+const REG = { run:false };
+async function dangKyMat(ma){
+  const nv = S.ql.nhanVien.find(n => n.ma === ma);
+  const huongDan = ['Nhìn thẳng vào camera', 'Hơi quay mặt sang trái', 'Hơi quay mặt sang phải', 'Hơi ngẩng lên', 'Nhìn thẳng lần nữa'];
+  const can = 5, mau = [];
+  $('#regTitle').textContent = 'Đăng ký khuôn mặt: ' + nv.ten;
+  $('#regBar').style.width = '0%'; $('#regClose').textContent = 'Hủy';
+  $('#reg').classList.remove('hidden');
+  const rh = t => { $('#regHint').textContent = t; };
+  REG.run = true;
+  try {
+    rh('Đang tải bộ nhận diện…'); await taiModel();
+    rh('Đang mở camera…'); await moCamera($('#regVideo'));
+    const video = $('#regVideo');
+    while (REG.run && mau.length < can){
+      const d = await faceapi.detectSingleFace(video, OPTS()).withFaceLandmarks().withFaceDescriptor();
+      if (!REG.run) break;
+      if (!d) rh('Đưa khuôn mặt vào khung tròn');
+      else if (d.detection.box.width / video.videoWidth < 0.25) rh('Đưa điện thoại lại gần hơn');
+      else if (ear(d.landmarks) < 0.2) rh('Mở mắt, nhìn vào camera');
+      else {
+        mau.push(Array.from(d.descriptor));
+        $('#regBar').style.width = (mau.length / can * 100) + '%';
+        if (mau.length < can){ rh(huongDan[mau.length]); await sleep(900); }
+        continue;
+      }
+      await sleep(150);
+    }
+    dongCamera();
+    if (!REG.run) return;
+    rh('Đang lưu…');
+    renderQL(await call('adminLuuMat', S.adminPin, ma, mau, S.ip));
+    $('#reg').classList.add('hidden'); REG.run = false;
+    toast('Đã đăng ký khuôn mặt cho ' + nv.ten);
+  } catch(e){
+    dongCamera(); REG.run = false;
+    rh(e.message); $('#regClose').textContent = 'Đóng';
+  }
+}
+async function xoaMat(ma){
+  const nv = S.ql.nhanVien.find(n => n.ma === ma);
+  if (!await modal('Xóa khuôn mặt?', `<p>${esc(nv.ten)} sẽ không chấm công được cho đến khi đăng ký lại.</p>`, 'Xóa')) return;
+  try { renderQL(await call('adminXoaMat', S.adminPin, ma, S.ip)); toast('Đã xóa'); } catch(e){ toast(e.message, true); }
+}
+
+async function wifi(cheDo, ip){
+  if (cheDo === 'thay' && !await modal('Đặt WiFi quán', '<p>Mạng bạn đang dùng sẽ trở thành WiFi chấm công <b>duy nhất</b>. Chỉ làm khi bạn đang ở quán và đang bắt WiFi quán.</p>', 'Đặt làm WiFi quán')) return;
+  if (cheDo === 'xoa' && !await modal('Xóa mạng này?', `<p><code>${esc(ip)}</code></p>`, 'Xóa')) return;
+  try {
+    S.ip = await getIP();
+    renderQL(await call('adminWifi', S.adminPin, cheDo, cheDo === 'xoa' ? ip : S.ip, S.ip));
+    toast('Đã cập nhật WiFi quán');
+  } catch(e){ toast(e.message, true); }
+}
+async function duyet(id){ try { renderQL(await call('adminDuyetCa', S.adminPin, id, S.ip)); toast('Đã duyệt'); } catch(e){ toast(e.message, true); } }
+async function xoaCa(id){
+  if (!await modal('Xóa ca này?', '<p class="muted">Không thể hoàn tác.</p>', 'Xóa')) return;
+  try { renderQL(await call('adminXoaCa', S.adminPin, id, S.ip)); toast('Đã xóa ca'); } catch(e){ toast(e.message, true); }
+}
+async function caForm(id){
+  const c = id ? [...S.ql.caCho, ...S.ql.caDuyet].find(x => x.id === id) : null;
+  const opts = S.ql.nhanVien.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
+  const html = (c ? `<p><b>${esc(c.ten)}</b></p>` : `<label>Nhân viên</label><select id="fNv">${opts}</select>`) +
+    `<label>Ngày</label><input type="date" id="fNgay" value="${c ? c.ngay : today()}">
+     <div class="two"><div><label>Bắt đầu</label><input type="time" id="fBd" value="${c ? c.batDau : '07:00'}"></div>
+     <div><label>Kết thúc</label><input type="time" id="fKt" value="${c ? c.ketThuc : '12:00'}"></div></div>
+     <p class="muted">Lưu xong ca sẽ ở trạng thái "Đã duyệt".</p>`;
+  if (!await modal(c ? 'Sửa ca' : 'Xếp ca cho nhân viên', html, 'Lưu')) return;
+  try {
+    renderQL(await call('adminLuuCa', S.adminPin, c ? c.id : '', c ? c.ma : $('#fNv').value, $('#fNgay').value, $('#fBd').value, $('#fKt').value, S.ip));
+    toast('Đã lưu ca');
+  } catch(e){ toast(e.message, true); }
+}
+async function chotRa(id){
+  const r = S.ql.dangMo.find(x => x.id === id);
+  const html = `<p><b>${esc(r.ten)}</b> vào ca lúc ${esc(r.vao)}</p><label>Giờ ra</label><input type="datetime-local" id="fRa" value="${esc(r.vaoISO)}">`;
+  if (!await modal('Chốt giờ ra', html, 'Lưu')) return;
+  try { renderQL(await call('adminChotRa', S.adminPin, id, $('#fRa').value, S.ip)); toast('Đã chốt giờ ra'); loadLuong(); } catch(e){ toast(e.message, true); }
+}
+async function loadLuong(){
+  $('#luongBody').innerHTML = '<p class="muted">Đang tính…</p>'; $('#luongLink').innerHTML = '';
+  try {
+    const ds = await call('adminBangLuong', S.adminPin, $('#thangQL').value);
+    if (!ds.length){ $('#luongBody').innerHTML = '<p class="muted">Chưa có công trong tháng này.</p>'; return; }
+    let g = 0, t = 0;
+    $('#luongBody').innerHTML = `<table><thead><tr><th>Nhân viên</th><th class="r">Ca</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
+      ds.map(m => { g += m.gio; t += m.tien; return `<tr><td>${esc(m.ten)}${m.lanMuon ? `<br><span class="late">Muộn ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}</td>
+        <td class="r">${m.soCa}</td><td class="r">${m.gio}</td><td class="r">${money(m.tien)}</td></tr>`; }).join('') +
+      `<tr><th>Tổng</th><th></th><th class="r">${Math.round(g*100)/100}</th><th class="r">${money(t)}</th></tr></tbody></table>`;
+  } catch(e){ $('#luongBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
+}
+async function xuatLuong(){
+  const url = await call('adminXuatLuong', S.adminPin, $('#thangQL').value);
+  $('#luongLink').innerHTML = `<div class="okbox">Đã xuất. <a href="${esc(url)}" target="_blank" rel="noopener">Mở bảng lương</a></div>`;
+}
+async function doiPin(){
+  if (!await modal('Đổi mã quản lý', '<label>Mã mới (4–10 chữ số)</label><input id="fPin" type="password" inputmode="numeric">', 'Lưu')) return;
+  const moi = $('#fPin').value.trim();
+  try { await call('adminDoiPin', S.adminPin, moi); S.adminPin = moi; toast('Đã đổi mã quản lý'); } catch(e){ toast(e.message, true); }
+}
+
+// ---------------- khởi động ----------------
+async function init(){
+  tick(); setInterval(tick, 1000);
+  fillMonths($('#thang')); fillMonths($('#thangQL'));
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+  $('#btnScan').onclick = batDauQuet;
+  $('#btnLogin').onclick = e => lock(e.currentTarget, login);
+  $('#pin').onkeydown = e => { if (e.key === 'Enter') $('#btnLogin').click(); };
+  $('#btnLogout').onclick = logout;
+  $('#btnDK').onclick = e => lock(e.currentTarget, dangKy);
+  $('#thang').onchange = loadCong;
+  $('#btnQL').onclick = e => lock(e.currentTarget, qlLogin);
+  $('#adminPin').onkeydown = e => { if (e.key === 'Enter') $('#btnQL').click(); };
+  $('#btnWifiThay').onclick = () => wifi('thay');
+  $('#btnWifiThem').onclick = () => wifi('them');
+  $('#btnDuyetHet').onclick = () => duyet('*');
+  $('#btnThemCa').onclick = () => caForm('');
+  $('#thangQL').onchange = loadLuong;
+  $('#btnXuat').onclick = e => lock(e.currentTarget, xuatLuong);
+  $('#btnDoiPin').onclick = doiPin;
+  $('#btnQLOut').onclick = () => { S.adminPin = ''; S.ql = null; loadQL(); };
+  $('#regClose').onclick = () => { REG.run = false; dongCamera(); $('#reg').classList.add('hidden'); };
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && S.tab === 'cc' && SC.run){ SC.phien++; ketThuc(null); hint('Bấm Quét lại để chấm công'); }
+  });
+  showTab('cc');
+  try {
+    const d = await call('getInit', '');
+    $('#tenQuan').textContent = d.tenQuan; document.title = "PA staff";
+    $('#nv').innerHTML = '<option value="">— Chọn tên của bạn —</option>' + d.nhanVien.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
+    const nho = load('cc_ma'); if (nho) $('#nv').value = nho;
+  } catch(e){ toast(e.message, true); }
+  taiModel().catch(() => {}); // tải sẵn bộ nhận diện
+  ganApp();
+}
+
+// ---------------- cài app lên màn hình chính ----------------
+let loiMoiCai = null;
+function ganApp(){
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  const daCai = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (daCai || load('an_cai_app')) return;
+  const ua = navigator.userAgent;
+  const iOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const trongApp = /Zalo|FBAN|FBAV|Instagram|Line\//i.test(ua);
+  const box = $('#install'), txt = $('#installTxt');
+  $('#installX').onclick = () => { box.classList.add('hidden'); save('an_cai_app', '1'); };
+  if (trongApp){
+    txt.innerHTML = '<b>Cài app PA staff</b><br>Bấm dấu ⋯ góc trên, chọn <b>Mở bằng trình duyệt</b>' + (iOS ? ' (Safari)' : ' (Chrome)') + ' rồi cài từ đó.';
+    box.classList.remove('hidden');
+  } else if (iOS){
+    const safari = !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+    txt.innerHTML = safari
+      ? '<b>Cài app PA staff</b><br>Bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên) ở thanh dưới, chọn <b>Thêm vào MH chính</b>.'
+      : '<b>Cài app PA staff</b><br>Hãy mở link này bằng <b>Safari</b> để cài app.';
+    box.classList.remove('hidden');
+  }
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); loiMoiCai = e;
+    txt.innerHTML = '<b>Cài app PA staff</b><br>Mở nhanh từ màn hình chính, không cần tìm link.<br><button class="sm" id="btnCai" style="margin-top:8px">Cài app</button>';
+    box.classList.remove('hidden');
+    $('#btnCai').onclick = async () => {
+      loiMoiCai.prompt();
+      const r = await loiMoiCai.userChoice.catch(() => ({}));
+      if (r.outcome === 'accepted') box.classList.add('hidden');
+      loiMoiCai = null;
+    };
+  });
+  window.addEventListener('appinstalled', () => box.classList.add('hidden'));
+}
+init();
+</script>
+</body>
+</html>
