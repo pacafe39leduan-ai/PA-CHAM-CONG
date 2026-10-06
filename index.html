@@ -116,6 +116,8 @@
         <div class="ten" id="cTen"></div>
         <div class="act" id="cAct"></div>
         <div class="count" id="cCount"></div>
+        <div class="errbox hidden" id="cWarn" style="text-align:left;font-weight:500"></div>
+        <button class="btn hidden" id="btnMoiCa">Vào ca mới</button>
         <button class="btn ghost" id="btnKhong">Không phải tôi</button>
       </div>
 
@@ -159,6 +161,20 @@
       <button class="btn" id="btnDK">Gửi đăng ký</button>
     </div>
     <div class="card"><h3>Ca của tôi</h3><div id="caCuaToi"><p class="muted">Đang tải…</p></div></div>
+    <div class="card">
+      <h3>Xin đến trễ</h3>
+      <p class="muted">Gửi trước để chủ quán duyệt. Được đồng ý thì đến trễ trong số phút đã xin không bị tính vi phạm.</p>
+      <div class="two">
+        <div><label for="ngayTre">Ngày</label><input type="date" id="ngayTre"></div>
+        <div><label for="phutTre">Xin trễ</label><select id="phutTre">
+          <option value="15">15 phút</option><option value="30" selected>30 phút</option><option value="45">45 phút</option>
+          <option value="60">1 tiếng</option><option value="90">1 tiếng 30</option><option value="120">2 tiếng</option></select></div>
+      </div>
+      <label for="lyDoTre">Lý do</label>
+      <input id="lyDoTre" maxlength="200" placeholder="VD: đi khám bệnh, xe hư">
+      <button class="btn" id="btnXinTre">Gửi xin phép</button>
+      <div id="dsXinTre"></div>
+    </div>
     <div class="card"><h3>Lịch ca cả quán (7 ngày tới)</h3><div id="lichChung"></div></div>
   </section>
 
@@ -181,6 +197,8 @@
     </div>
 
     <div id="qlPanel" class="hidden">
+      <div class="card" id="cardTC"><h3>Tăng ca chờ duyệt</h3><div id="qlTC"></div></div>
+
       <div class="card">
         <h3>WiFi của quán</h3>
         <div id="qlWifi"></div>
@@ -195,7 +213,15 @@
         <div id="qlMat"></div>
       </div>
 
+      <div class="card hidden" id="cardRS"><h3>Roster cần kiểm tra</h3><p class="muted">Những dòng này trong trang Roster chưa đọc được, ca của người đó sẽ không được tính.</p><div id="qlRS"></div></div>
+
       <div class="card"><h3>Đang trong ca / quên chấm ra</h3><div id="qlMo"></div></div>
+
+      <div class="card"><h3>Biên bản đi trễ chờ quyết định</h3>
+        <p class="muted">Trễ trên 30 phút. <b>Có</b> = phạt trừ vào lương, <b>Không</b> = bỏ qua biên bản (vẫn trừ giờ công theo quy định).</p>
+        <div id="qlBB"></div></div>
+
+      <div class="card"><h3>Xin đến trễ chờ duyệt</h3><div id="qlTre"></div></div>
 
       <div class="card">
         <div class="row" style="padding-top:0"><h3 style="margin:0">Ca chờ duyệt</h3><button class="sm ok" id="btnDuyetHet">Duyệt tất cả</button></div>
@@ -203,7 +229,8 @@
       </div>
 
       <div class="card">
-        <div class="row" style="padding-top:0"><h3 style="margin:0">Lịch ca đã duyệt</h3><button class="sm" id="btnThemCa">+ Xếp ca</button></div>
+        <div class="row" style="padding-top:0"><h3 style="margin:0">Lịch ca 7 ngày tới</h3><button class="sm" id="btnThemCa">+ Xếp ca</button></div>
+        <p class="muted">Ca chính lấy từ trang Roster trong Google Sheets. Nút "+ Xếp ca" dùng để thêm ca lẻ.</p>
         <div id="qlDuyet"></div>
       </div>
 
@@ -451,12 +478,21 @@ async function xacNhan(r, anh, phien){
   a.className = 'act ' + r.loai;
   a.textContent = r.loai === 'vao' ? 'VÀO CA' : `RA CA (vào lúc ${r.gioVao})`;
   $('#confirm').classList.remove('hidden');
-  let huy = false;
+  let huy = false, ok = false;
   $('#btnKhong').onclick = () => { huy = true; };
-  for (let i = 3; i > 0; i--){
-    $('#cCount').textContent = `Tự động lưu sau ${i} giây…`;
-    for (let k = 0; k < 10; k++){ await sleep(100); if (huy || phien !== SC.phien) break; }
-    if (huy || phien !== SC.phien) break;
+  if (r.canhBao){
+    // ca trước quá hạn: phải tự xác nhận vào ca mới, không tự lưu
+    $('#cWarn').textContent = r.canhBao; $('#cWarn').classList.remove('hidden');
+    $('#btnMoiCa').classList.remove('hidden'); $('#btnMoiCa').onclick = () => { ok = true; };
+    $('#cCount').textContent = '';
+    while (!ok && !huy && phien === SC.phien) await sleep(100);
+    $('#cWarn').classList.add('hidden'); $('#btnMoiCa').classList.add('hidden');
+  } else {
+    for (let i = 3; i > 0; i--){
+      $('#cCount').textContent = `Tự động lưu sau ${i} giây…`;
+      for (let k = 0; k < 10; k++){ await sleep(100); if (huy || phien !== SC.phien) break; }
+      if (huy || phien !== SC.phien) break;
+    }
   }
   if (phien !== SC.phien) return;
   if (huy){ camState(''); return ketThuc('<div class="errbox">Đã hủy. Bấm Quét lại và nhìn thẳng camera.</div>'); }
@@ -464,9 +500,9 @@ async function xacNhan(r, anh, phien){
   try {
     const k = await call('chamCongMat', r.token, anh);
     const msg = k.loai === 'vao'
-      ? `${k.ten} đã VÀO CA lúc ${k.gio}` + (k.muon > 0 ? ` (muộn ${k.muon} phút)` : '')
+      ? `${k.ten} đã VÀO CA lúc ${k.gio}` + (k.muon > 0 ? ` (trễ ${k.muon} phút)` : '') + (k.ketThuc ? ` · ca kết thúc ${k.ketThuc}` : '')
       : `${k.ten} đã RA CA lúc ${k.gio} — làm ${k.soGio} giờ`;
-    ketThuc(`<div class="okbox">${esc(msg)}</div>`);
+    ketThuc(`<div class="okbox">${esc(msg)}</div>` + (k.canhBao ? `<div class="errbox" style="font-weight:500">${esc(k.canhBao)}</div>` : ''));
   } catch(e){ camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`); }
   $('#btnKhong').classList.remove('hidden');
 }
@@ -500,14 +536,16 @@ function logout(){ S.ma = S.pin = S.ten = ''; showTab(S.tab); }
 async function loadCa(){
   if (!$('#ngayCa').value) $('#ngayCa').value = today();
   $('#ngayCa').min = today();
+  if (!$('#ngayTre').value) $('#ngayTre').value = today();
+  $('#ngayTre').min = today();
   try { renderCa(await call('caCuaToi', S.ma, S.pin)); } catch(e){ toast(e.message, true); }
 }
 function lichHtml(list, admin){
   if (!list.length) return '<p class="muted">Chưa có ca nào.</p>';
   const g = {}; list.forEach(c => (g[c.ngay] = g[c.ngay] || []).push(c));
   return Object.keys(g).map(d => `<div class="day"><div class="dayh">${ngayVN(d)}</div>` +
-    g[d].map(c => `<div class="li"><span>${c.batDau}–${c.ketThuc} · ${esc(c.ten)}</span>` +
-      (admin ? `<span class="acts"><button class="sm ghost" onclick="caForm('${esc(c.id)}')">Sửa</button><button class="sm ghost" onclick="xoaCa('${esc(c.id)}')">Xóa</button></span>` : '') +
+    g[d].map(c => `<div class="li"><span>${c.batDau}–${c.ketThuc}${c.quaDem ? ' (hôm sau)' : ''} · ${esc(c.ten)}</span>` +
+      (admin ? (c.nguon === 'roster' ? `<span class="tag ok">Roster</span>` : `<span class="acts"><button class="sm ghost" onclick="caForm('${esc(c.id)}')">Sửa</button><button class="sm ghost" onclick="xoaCa('${esc(c.id)}')">Xóa</button></span>`) : '') +
       `</div>`).join('') + '</div>').join('');
 }
 function renderCa(d){
@@ -516,6 +554,18 @@ function renderCa(d){
       ${c.trangThai !== DUYET ? `<button class="sm ghost" onclick="huyCa('${esc(c.id)}')">Hủy</button>` : ''}</div>`).join('')
     : '<p class="muted">Bạn chưa đăng ký ca nào.</p>';
   $('#lichChung').innerHTML = lichHtml(d.lichChung, false);
+  const tag = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
+  $('#dsXinTre').innerHTML = (d.xinTre || []).length ? '<div style="margin-top:12px">' + d.xinTre.map(x => `<div class="row"><div><b>${ngayVN(x.ngay)}</b> · trễ ${x.phut} phút<br>
+      <span class="tag ${tag(x.trangThai)}">${esc(x.trangThai)}</span> <span class="muted">${esc(x.lyDo)}</span></div>
+      ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyTre('${esc(x.id)}')">Hủy</button>` : ''}</div>`).join('') + '</div>' : '';
+}
+async function guiXinTre(){
+  renderCa(await call('xinTre', S.ma, S.pin, $('#ngayTre').value, $('#phutTre').value, $('#lyDoTre').value));
+  $('#lyDoTre').value = ''; toast('Đã gửi, chờ chủ quán duyệt');
+}
+async function huyTre(id){
+  if (!await modal('Hủy đơn xin trễ?', '<p class="muted">Đơn chưa duyệt sẽ bị xóa.</p>', 'Hủy đơn')) return;
+  try { renderCa(await call('huyXinTre', S.ma, S.pin, id)); toast('Đã hủy'); } catch(e){ toast(e.message, true); }
 }
 async function dangKy(){
   renderCa(await call('dangKyCa', S.ma, S.pin, $('#ngayCa').value, $('#bdCa').value, $('#ktCa').value, $('#gcCa').value));
@@ -529,10 +579,15 @@ async function loadCong(){
   $('#congBody').innerHTML = '<p class="muted">Đang tải…</p>';
   try {
     const d = await call('congCuaToi', S.ma, S.pin, $('#thang').value);
-    $('#congBody').innerHTML = `<div class="sum"><div><span>Tổng giờ</span><b>${d.tongGio}</b></div><div><span>Tạm tính</span><b>${money(d.tongTien)}</b></div></div>` +
-      (d.ds.length ? `<table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
-        d.ds.map(r => `<tr><td>${r.ngay}</td><td>${r.vao}${r.muon > 0 ? ` <span class="late">+${r.muon}′</span>` : ''}</td><td>${r.ra}</td><td class="r">${r.gio || '—'}</td><td class="r">${r.tien ? money(r.tien) : '—'}</td></tr>`).join('') +
-        `</tbody></table><p class="muted">+N′ = số phút đi muộn so với ca đã duyệt.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
+    const nhan = r => [r.heLe > 1 ? `<span class="tag ok">Lễ x${r.heLe}</span>` : '', r.gioDem > 0 ? `<span class="tag wait">Đêm ${r.gioDem}h</span>` : '',
+      r.truGio ? `<span class="tag bad">Trễ −${r.truGio}h</span>` : '', r.phat ? `<span class="tag bad">BB −${money(r.phat)}</span>` : '',
+      r.phatCho ? `<span class="tag wait">BB chờ xét</span>` : '', r.tangCa ? `<span class="tag ok">Tăng ca ${r.tangCa}′</span>` : '',
+      r.tinhDen ? `<span class="tag wait">Tính đến ${r.tinhDen}</span>` : '', r.tangCaCho ? `<span class="tag wait">Tăng ca chờ duyệt</span>` : ''].join(' ');
+    $('#congBody').innerHTML = `<div class="sum"><div><span>Tổng giờ</span><b>${d.gio || 0}</b></div><div><span>Tạm tính</span><b>${money(d.tong)}</b></div></div>` +
+      (d.ds.length ? `<p class="muted">${chiTietLuong(d)}</p><table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
+        d.ds.map(r => `<tr><td>${r.ngay}</td><td>${r.vao}${r.muon > 0 ? ` <span class="late">+${r.muon}′</span>` : ''}${r.coPhep ? ' <span class="tag ok">có phép</span>' : ''}</td><td>${r.ra}</td><td class="r">${r.gio || '—'}</td><td class="r">${r.ra !== '—' ? money(r.tien) : '—'}</td></tr>` +
+          (nhan(r).trim() ? `<tr><td colspan="5" style="border-top:0;padding-top:0">${nhan(r)}</td></tr>` : '')).join('') +
+        `</tbody></table><p class="muted">+N′ = số phút đi trễ so với ca đã duyệt. Phụ cấp ca gãy tính theo ngày, đã cộng vào tạm tính.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
   } catch(e){ $('#congBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
 }
 
@@ -571,6 +626,22 @@ function renderQL(d){
     : '<p class="muted">Không có ca nào chờ duyệt.</p>';
   $('#btnDuyetHet').classList.toggle('hidden', d.caCho.length < 2);
   $('#qlDuyet').innerHTML = lichHtml(d.caDuyet, true);
+  $('#cardTC').classList.toggle('hidden', !d.tangCa.length);
+  $('#cardRS').classList.toggle('hidden', !(d.rosterLoi || []).length);
+  $('#qlRS').innerHTML = (d.rosterLoi || []).map(x => `<div class="row"><span class="late" style="font-weight:500">${esc(x)}</span></div>`).join('');
+  $('#qlTC').innerHTML = d.tangCa.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> <span class="muted">· ${esc(x.ngay)}</span><br>
+      <span class="muted">Vào ${esc(x.vao)} · ca kết thúc ${esc(x.ketThuc)} · ${x.ra ? 'bấm ra ' + esc(x.ra) : '<span class="late">chưa bấm ra</span>'}</span></div>
+      <div class="acts">${x.buoc === 1
+        ? `<button class="sm ok" onclick="tangCa('${esc(x.id)}','co')">Có (đến ${esc(x.ket30)})</button><button class="sm ghost" onclick="tangCa('${esc(x.id)}','khong')">Không (đến ${esc(x.ketThuc)})</button>`
+        : `<button class="sm ghost" onclick="tangCa('${esc(x.id)}','dung')">Ra đúng giờ ${esc(x.ketThuc)}</button><button class="sm ok" onclick="tangCa('${esc(x.id)}','1h')">Tăng ca 1 tiếng</button><button class="sm" onclick="tangCa('${esc(x.id)}','khac')">Tăng ca khác…</button>`}</div></div>`).join('');
+  $('#qlBB').innerHTML = d.viPham.length ? d.viPham.map(v => `<div class="row"><div><b>${esc(v.ten)}</b><br>
+      <span class="muted">${esc(v.ngay)} vào ${esc(v.vao)} · trễ ${v.muon} phút</span><br><span class="late">Phạt ${money(v.phat)}</span></div>
+      <div class="acts"><button class="sm" onclick="bienBan('${esc(v.id)}','Có')">Có</button><button class="sm ghost" onclick="bienBan('${esc(v.id)}','Không')">Không</button></div></div>`).join('')
+    : '<p class="muted">Không có biên bản nào chờ quyết định.</p>';
+  $('#qlTre').innerHTML = d.xinTreCho.length ? d.xinTreCho.map(x => `<div class="row"><div><b>${esc(x.ten)}</b><br>
+      ${ngayVN(x.ngay)} · xin trễ ${x.phut} phút<br><span class="muted">${esc(x.lyDo)}</span></div>
+      <div class="acts"><button class="sm ok" onclick="duyetTre('${esc(x.id)}',true)">Đồng ý</button><button class="sm ghost" onclick="duyetTre('${esc(x.id)}',false)">Từ chối</button></div></div>`).join('')
+    : '<p class="muted">Không có đơn nào chờ duyệt.</p>';
   $('#linkSheet').href = d.linkSheet;
 }
 
@@ -634,17 +705,33 @@ async function xoaCa(id){
   if (!await modal('Xóa ca này?', '<p class="muted">Không thể hoàn tác.</p>', 'Xóa')) return;
   try { renderQL(await call('adminXoaCa', S.adminPin, id, S.ip)); toast('Đã xóa ca'); } catch(e){ toast(e.message, true); }
 }
+async function tangCa(id, chon){
+  let phut = 0;
+  if (chon === 'khac'){
+    const x = S.ql.tangCa.find(t => t.id === id);
+    if (!await modal('Tăng ca bao lâu?', `<p><b>${esc(x.ten)}</b> · ca kết thúc ${esc(x.ketThuc)}</p>
+      <div class="two"><div><label>Giờ</label><input type="number" id="fTcGio" min="0" max="12" value="1"></div>
+      <div><label>Phút</label><input type="number" id="fTcPhut" min="0" max="59" step="5" value="30"></div></div>`, 'Lưu')) return;
+    phut = (Number($('#fTcGio').value) || 0) * 60 + (Number($('#fTcPhut').value) || 0);
+  }
+  try { renderQL(await call('adminTangCa', S.adminPin, id, chon, phut, S.ip)); toast('Đã lưu'); loadLuong(); } catch(e){ toast(e.message, true); }
+}
 async function caForm(id){
   const c = id ? [...S.ql.caCho, ...S.ql.caDuyet].find(x => x.id === id) : null;
-  const opts = S.ql.nhanVien.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
-  const html = (c ? `<p><b>${esc(c.ten)}</b></p>` : `<label>Nhân viên</label><select id="fNv">${opts}</select>`) +
-    `<label>Ngày</label><input type="date" id="fNgay" value="${c ? c.ngay : today()}">
-     <div class="two"><div><label>Bắt đầu</label><input type="time" id="fBd" value="${c ? c.batDau : '07:00'}"></div>
+  const ds = S.ql.nhanVien.map(n => `<label style="display:flex;gap:8px;align-items:center;margin:6px 0;color:var(--chu)"><input type="checkbox" class="fNvChk" value="${esc(n.ma)}" style="width:20px;height:20px">${esc(n.ten)}</label>`).join('');
+  const html = (c ? `<p><b>${esc(c.ten)}</b></p>` :
+      `<label>Nhân viên <button type="button" class="link" onclick="document.querySelectorAll('.fNvChk').forEach(x=>x.checked=true)">chọn tất cả</button></label>
+       <div style="max-height:180px;overflow:auto;border:1px solid var(--vien);border-radius:10px;padding:4px 12px">${ds}</div>`) +
+    `<div class="two"><div><label>${c ? 'Ngày' : 'Từ ngày'}</label><input type="date" id="fNgay" value="${c ? c.ngay : today()}"></div>
+     ${c ? '' : `<div><label>Đến ngày</label><input type="date" id="fDen" value=""></div>`}</div>
+     <div class="two"><div><label>Bắt đầu</label><input type="time" id="fBd" value="${c ? c.batDau : '06:00'}"></div>
      <div><label>Kết thúc</label><input type="time" id="fKt" value="${c ? c.ketThuc : '12:00'}"></div></div>
-     <p class="muted">Lưu xong ca sẽ ở trạng thái "Đã duyệt".</p>`;
-  if (!await modal(c ? 'Sửa ca' : 'Xếp ca cho nhân viên', html, 'Lưu')) return;
+     <p class="muted">${c ? '' : 'Để trống "Đến ngày" nếu chỉ xếp 1 ngày. Mỗi ngày 2 ca thì xếp 2 lần với 2 khung giờ. '}Giờ kết thúc nhỏ hơn giờ bắt đầu = ca qua đêm.</p>`;
+  if (!await modal(c ? 'Sửa ca' : 'Xếp ca', html, 'Lưu')) return;
+  const chon = c ? c.ma : [...document.querySelectorAll('.fNvChk:checked')].map(x => x.value);
+  if (!c && !chon.length) return toast('Chưa chọn nhân viên', true);
   try {
-    renderQL(await call('adminLuuCa', S.adminPin, c ? c.id : '', c ? c.ma : $('#fNv').value, $('#fNgay').value, $('#fBd').value, $('#fKt').value, S.ip));
+    renderQL(await call('adminLuuCa', S.adminPin, c ? c.id : '', chon, $('#fNgay').value, $('#fBd').value, $('#fKt').value, S.ip, c ? '' : $('#fDen').value));
     toast('Đã lưu ca');
   } catch(e){ toast(e.message, true); }
 }
@@ -654,16 +741,32 @@ async function chotRa(id){
   if (!await modal('Chốt giờ ra', html, 'Lưu')) return;
   try { renderQL(await call('adminChotRa', S.adminPin, id, $('#fRa').value, S.ip)); toast('Đã chốt giờ ra'); loadLuong(); } catch(e){ toast(e.message, true); }
 }
+async function duyetTre(id, dongY){
+  try { renderQL(await call('adminDuyetTre', S.adminPin, id, dongY, S.ip)); toast(dongY ? 'Đã đồng ý' : 'Đã từ chối'); } catch(e){ toast(e.message, true); }
+}
+async function bienBan(id, chon){
+  try { renderQL(await call('adminBienBan', S.adminPin, id, chon, S.ip)); toast(chon === 'Có' ? 'Đã lập biên bản' : 'Đã bỏ qua biên bản'); loadLuong(); } catch(e){ toast(e.message, true); }
+}
+function chiTietLuong(m){
+  const p = [`Cơ bản ${money(m.luongCB)}`];
+  if (m.phuTroiLe) p.push(`Lễ +${money(m.phuTroiLe)}`);
+  if (m.pcCaGay) p.push(`Ca gãy ${m.ngayCaGay} ngày +${money(m.pcCaGay)}`);
+  if (m.pcDem) p.push(`Đêm ${m.gioDem}h +${money(m.pcDem)}`);
+  if (m.truTienTre) p.push(`Trễ −${m.truGioTre}h −${money(m.truTienTre)}`);
+  if (m.phatBienBan) p.push(`Biên bản −${money(m.phatBienBan)}`);
+  return p.join(' · ');
+}
 async function loadLuong(){
   $('#luongBody').innerHTML = '<p class="muted">Đang tính…</p>'; $('#luongLink').innerHTML = '';
   try {
     const ds = await call('adminBangLuong', S.adminPin, $('#thangQL').value);
     if (!ds.length){ $('#luongBody').innerHTML = '<p class="muted">Chưa có công trong tháng này.</p>'; return; }
     let g = 0, t = 0;
-    $('#luongBody').innerHTML = `<table><thead><tr><th>Nhân viên</th><th class="r">Ca</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
-      ds.map(m => { g += m.gio; t += m.tien; return `<tr><td>${esc(m.ten)}${m.lanMuon ? `<br><span class="late">Muộn ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}</td>
-        <td class="r">${m.soCa}</td><td class="r">${m.gio}</td><td class="r">${money(m.tien)}</td></tr>`; }).join('') +
-      `<tr><th>Tổng</th><th></th><th class="r">${Math.round(g*100)/100}</th><th class="r">${money(t)}</th></tr></tbody></table>`;
+    $('#luongBody').innerHTML = `<table><thead><tr><th>Nhân viên</th><th class="r">Giờ</th><th class="r">Tổng lương</th></tr></thead><tbody>` +
+      ds.map(m => { g += m.gio; t += m.tong; return `<tr><td><b>${esc(m.ten)}</b> <span class="muted">· ${m.soCa} ca</span><br><span class="muted" style="font-size:12px">${chiTietLuong(m)}</span>
+        ${m.lanMuon ? `<br><span class="late">Trễ ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.bienBanCho ? `<br><span class="tag wait">${m.bienBanCho} biên bản chờ quyết định</span>` : ''}${m.tangCaCho ? `<br><span class="tag wait">${m.tangCaCho} tăng ca chờ duyệt</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}</td>
+        <td class="r">${m.gio}</td><td class="r"><b>${money(m.tong)}</b></td></tr>`; }).join('') +
+      `<tr><th>Tổng</th><th class="r">${Math.round(g*100)/100}</th><th class="r">${money(t)}</th></tr></tbody></table>`;
   } catch(e){ $('#luongBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
 }
 async function xuatLuong(){
@@ -686,6 +789,7 @@ async function init(){
   $('#pin').onkeydown = e => { if (e.key === 'Enter') $('#btnLogin').click(); };
   $('#btnLogout').onclick = logout;
   $('#btnDK').onclick = e => lock(e.currentTarget, dangKy);
+  $('#btnXinTre').onclick = e => lock(e.currentTarget, guiXinTre);
   $('#thang').onchange = loadCong;
   $('#btnQL').onclick = e => lock(e.currentTarget, qlLogin);
   $('#adminPin').onkeydown = e => { if (e.key === 'Enter') $('#btnQL').click(); };
