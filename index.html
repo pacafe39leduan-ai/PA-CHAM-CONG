@@ -149,19 +149,21 @@
   <!-- ===== Tab ca làm ===== -->
   <section id="tab-ca" class="tab hidden">
     <div class="card hidden" id="cardTB" style="border-color:#e0b98a;background:#fffaf2"><h3>🔔 Thông báo mới</h3><div id="dsTB"></div></div>
+
     <div class="card">
       <h3>Đăng ký ca</h3>
+      <p class="muted">Ghi nguyện vọng tối đa 3 khung giờ trong ngày. Chủ quán sẽ sắp xếp và báo lại.</p>
       <label for="ngayCa">Ngày</label>
       <input type="date" id="ngayCa">
-      <div class="two">
-        <div><label for="bdCa">Bắt đầu</label><input type="time" id="bdCa" value="07:00"></div>
-        <div><label for="ktCa">Kết thúc</label><input type="time" id="ktCa" value="12:00"></div>
-      </div>
+      <div class="two" style="margin-top:6px"><div><label>Bắt đầu 1</label><input type="time" id="bd1"></div><div><label>Kết thúc 1</label><input type="time" id="kt1"></div></div>
+      <div class="two"><div><label>Bắt đầu 2</label><input type="time" id="bd2"></div><div><label>Kết thúc 2</label><input type="time" id="kt2"></div></div>
+      <div class="two"><div><label>Bắt đầu 3</label><input type="time" id="bd3"></div><div><label>Kết thúc 3</label><input type="time" id="kt3"></div></div>
       <label for="gcCa">Ghi chú (không bắt buộc)</label>
-      <input id="gcCa" maxlength="200" placeholder="VD: có thể đổi ca với bạn B">
+      <input id="gcCa" maxlength="200" placeholder="VD: em làm được cả ngày thứ 7">
       <button class="btn" id="btnDK">Gửi đăng ký</button>
+      <div id="dsDK"></div>
     </div>
-    <div class="card"><h3>Ca của tôi</h3><div id="caCuaToi"><p class="muted">Đang tải…</p></div></div>
+
     <div class="card">
       <h3>Xin đến trễ</h3>
       <p class="muted">Gửi trước để chủ quán duyệt. Được đồng ý thì đến trễ trong số phút đã xin không bị tính vi phạm.</p>
@@ -176,6 +178,7 @@
       <button class="btn" id="btnXinTre">Gửi xin phép</button>
       <div id="dsXinTre"></div>
     </div>
+
     <div class="card">
       <h3>Xin nghỉ / Đổi ca</h3>
       <div class="two">
@@ -188,7 +191,8 @@
       <button class="btn" id="btnGuiDon">Gửi đơn</button>
       <div id="dsDon"></div>
     </div>
-    <div class="card"><h3>Lịch ca cả quán (7 ngày tới)</h3><div id="lichChung"></div></div>
+
+    <div class="card"><h3>Ca của tôi</h3><div id="caCuaToi"><p class="muted">Đang tải…</p></div></div>
   </section>
 
   <!-- ===== Tab công của tôi ===== -->
@@ -236,7 +240,7 @@
 
       <div class="card"><h3>Xin đến trễ chờ duyệt</h3><div id="qlTre"></div></div>
 
-      <div class="card"><h3>Xin nghỉ / đổi ca chờ duyệt</h3><p class="muted">Đồng ý xong nhớ sửa trang Roster cho khớp.</p><div id="qlDon"></div></div>
+      <div class="card"><h3>Đơn chờ duyệt: đăng ký ca, xin nghỉ, đổi ca</h3><p class="muted">Đồng ý xin nghỉ / đổi ca thì trang Roster tự cập nhật. Đăng ký ca là nguyện vọng: đồng ý = đã ghi nhận, bạn tự xếp vào Roster.</p><div id="qlDon"></div></div>
 
       <div class="card">
         <div class="row" style="padding-top:0"><h3 style="margin:0">Ca chờ duyệt</h3><button class="sm ok" id="btnDuyetHet">Duyệt tất cả</button></div>
@@ -567,20 +571,26 @@ function lichHtml(list, admin){
       `</div>`).join('') + '</div>').join('');
 }
 function renderCa(d){
-  $('#caCuaToi').innerHTML = d.cuaToi.length ? d.cuaToi.map(c => `<div class="row"><div><b>${ngayVN(c.ngay)}</b> · ${c.batDau}–${c.ketThuc}<br>
-      <span class="tag ${c.trangThai === DUYET ? 'ok' : c.trangThai === 'Từ chối' ? 'bad' : 'wait'}">${esc(c.trangThai)}</span> <span class="muted">${esc(c.ghiChu)}</span></div>
-      ${c.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyCa('${esc(c.id)}')">Hủy</button>` : ''}</div>`).join('')
-    : '<p class="muted">Bạn chưa đăng ký ca nào.</p>';
-  $('#lichChung').innerHTML = lichHtml(d.lichChung, false);
+  const theoNgay = {};
+  (d.cuaToi || []).forEach(c => (theoNgay[c.ngay] = theoNgay[c.ngay] || []).push(c));
+  const ngays = Object.keys(theoNgay).sort();
+  $('#caCuaToi').innerHTML = ngays.length ? ngays.map(n => {
+    const ca = theoNgay[n].sort((a, b) => a.batDau.localeCompare(b.batDau));
+    return `<div class="row"><div><b>${ngayVN(n)}</b></div><div style="text-align:right">${ca.map(c => `${c.batDau}–${c.ketThuc}${c.quaDem ? '<span class="muted"> (hôm sau)</span>' : ''}`).join(' &nbsp;·&nbsp; ')}
+      ${ca.length > 1 ? '<br><span class="tag wait">ca gãy</span>' : ''}</div></div>`;
+  }).join('') : '<p class="muted">Chưa có ca nào được xếp cho bạn.</p>';
   if ((d.thongBao || []).length){
     $('#dsTB').innerHTML = d.thongBao.map(t => `<div class="row"><span><span class="tag ${t.ok ? 'ok' : 'bad'}">${t.ok ? '✓' : '✗'}</span> ${esc(t.text)}</span></div>`).join('');
     $('#cardTB').classList.remove('hidden');
   } else if (d.thongBao) $('#cardTB').classList.add('hidden');
   if (d.dongNghiep) $('#doiVoi').innerHTML = d.dongNghiep.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
   const tg = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
-  $('#dsDon').innerHTML = (d.don || []).length ? '<div style="margin-top:12px">' + d.don.map(x => `<div class="row"><div><b>${esc(x.loai)}</b> · ${ngayVN(x.ngay)}${x.doiVoi ? ' · với ' + esc(x.doiVoi) : ''}<br>
-      <span class="tag ${tg(x.trangThai)}">${esc(x.trangThai)}</span> <span class="muted">${esc(x.noiDung)}</span></div>
-      ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyDon('${esc(x.id)}')">Hủy</button>` : ''}</div>`).join('') + '</div>' : '';
+  const dongDon = x => `<div class="row"><div><b>${x.loai === 'Đăng ký ca' ? ngayVN(x.ngay) : esc(x.loai) + ' · ' + ngayVN(x.ngay)}</b>${x.doiVoi ? ' · với ' + esc(x.doiVoi) : ''}<br>
+      <span class="tag ${tg(x.trangThai)}">${esc(x.loai === 'Đăng ký ca' && x.trangThai === 'Đồng ý' ? 'Đã ghi nhận' : x.trangThai)}</span> <span class="muted">${esc(x.noiDung)}</span></div>
+      ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyDon('${esc(x.id)}')">Hủy</button>` : ''}</div>`;
+  const dk = (d.don || []).filter(x => x.loai === 'Đăng ký ca'), khac = (d.don || []).filter(x => x.loai !== 'Đăng ký ca');
+  $('#dsDK').innerHTML = dk.length ? '<div style="margin-top:12px">' + dk.map(dongDon).join('') + '</div>' : '';
+  $('#dsDon').innerHTML = khac.length ? '<div style="margin-top:12px">' + khac.map(dongDon).join('') + '</div>' : '';
   const tag = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
   $('#dsXinTre').innerHTML = (d.xinTre || []).length ? '<div style="margin-top:12px">' + d.xinTre.map(x => `<div class="row"><div><b>${ngayVN(x.ngay)}</b> · trễ ${x.phut} phút<br>
       <span class="tag ${tag(x.trangThai)}">${esc(x.trangThai)}</span> <span class="muted">${esc(x.lyDo)}</span></div>
@@ -609,8 +619,11 @@ async function huyTre(id){
   try { renderCa(await call('huyXinTre', S.ma, S.pin, id)); toast('Đã hủy'); } catch(e){ toast(e.message, true); }
 }
 async function dangKy(){
-  renderCa(await call('dangKyCa', S.ma, S.pin, $('#ngayCa').value, $('#bdCa').value, $('#ktCa').value, $('#gcCa').value));
-  $('#gcCa').value = ''; toast('Đã gửi đăng ký, chờ chủ quán duyệt');
+  const khung = [1, 2, 3].map(i => [$('#bd' + i).value, $('#kt' + i).value]).filter(k => k[0] || k[1]);
+  if (!khung.length) return toast('Hãy nhập ít nhất một khung giờ', true);
+  renderCa(await call('guiDon', S.ma, S.pin, 'Đăng ký ca', $('#ngayCa').value, '', $('#gcCa').value, khung));
+  [1, 2, 3].forEach(i => { $('#bd' + i).value = ''; $('#kt' + i).value = ''; });
+  $('#gcCa').value = ''; toast('Đã gửi nguyện vọng, chờ chủ quán sắp xếp');
 }
 async function huyCa(id){
   if (!await modal('Hủy ca này?', '<p class="muted">Ca chưa được duyệt sẽ bị xóa.</p>', 'Hủy ca')) return;
@@ -620,15 +633,25 @@ async function loadCong(){
   $('#congBody').innerHTML = '<p class="muted">Đang tải…</p>';
   try {
     const d = await call('congCuaToi', S.ma, S.pin, $('#thang').value);
+    const dong = (ten, giaTri, chu, am) => `<tr><td>${ten}${chu ? `<br><span class="muted" style="font-size:12px">${chu}</span>` : ''}</td><td class="r" style="${am && giaTri ? 'color:var(--do)' : ''}">${giaTri ? (am ? '−' : '+') + money(giaTri) : '0đ'}</td></tr>`;
+    const bang = d.ds.length ? `<h3 style="margin:16px 0 4px">Chi tiết lương</h3><table><tbody>
+      <tr><td>Lương cơ bản<br><span class="muted" style="font-size:12px">${d.gio || 0} giờ làm</span></td><td class="r">${money(d.luongCB)}</td></tr>
+      ${dong('Nhân lương ngày lễ', d.phuTroiLe, d.gioLe ? `${d.gioLe} giờ làm ngày lễ (x2 / x3)` : 'Không có giờ làm ngày lễ')}
+      ${dong('Phụ cấp ca gãy', d.pcCaGay, `${d.ngayCaGay || 0} ngày × 10.000đ`)}
+      ${dong('Phụ cấp ca đêm', d.pcDem, `${d.gioDem || 0} giờ (0h–6h) × 5.000đ`)}
+      ${dong('Trừ đi trễ', d.truTienTre, `${d.lanMuon || 0} lần trễ, tổng ${d.phutMuon || 0} phút · trừ ${d.truGioTre || 0} giờ công`, true)}
+      ${dong('Phạt biên bản', d.phatBienBan, d.bienBanCho ? `${d.bienBanCho} biên bản chờ chủ quán quyết định` : 'Biên bản trễ trên 30 phút', true)}
+      <tr><th>Tạm tính</th><th class="r" style="font-size:17px">${money(d.tong)}</th></tr></tbody></table>
+      ${d.tangCaCho ? `<p class="muted">${d.tangCaCho} lượt tăng ca đang chờ chủ quán duyệt.</p>` : ''}` : '';
     const nhan = r => [r.heLe > 1 ? `<span class="tag ok">Lễ x${r.heLe}</span>` : '', r.gioDem > 0 ? `<span class="tag wait">Đêm ${r.gioDem}h</span>` : '',
       r.truGio ? `<span class="tag bad">Trễ −${r.truGio}h</span>` : '', r.phat ? `<span class="tag bad">BB −${money(r.phat)}</span>` : '',
       r.phatCho ? `<span class="tag wait">BB chờ xét</span>` : '', r.tangCa ? `<span class="tag ok">Tăng ca ${r.tangCa}′</span>` : '',
       r.tinhDen ? `<span class="tag wait">Tính đến ${r.tinhDen}</span>` : '', r.tangCaCho ? `<span class="tag wait">Tăng ca chờ duyệt</span>` : ''].join(' ');
-    $('#congBody').innerHTML = `<div class="sum"><div><span>Tổng giờ</span><b>${d.gio || 0}</b></div><div><span>Tạm tính</span><b>${money(d.tong)}</b></div></div>` +
-      (d.ds.length ? `<p class="muted">${chiTietLuong(d)}</p><table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
+    $('#congBody').innerHTML = `<div class="sum"><div><span>Tổng giờ</span><b>${d.gio || 0}</b></div><div><span>Tạm tính</span><b>${money(d.tong)}</b></div></div>` + bang +
+      (d.ds.length ? `<h3 style="margin:16px 0 4px">Từng ngày</h3><table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
         d.ds.map(r => `<tr><td>${r.ngay}</td><td>${r.vao}${r.muon > 0 ? ` <span class="late">+${r.muon}′</span>` : ''}${r.coPhep ? ' <span class="tag ok">có phép</span>' : ''}</td><td>${r.ra}</td><td class="r">${r.gio || '—'}</td><td class="r">${r.ra !== '—' ? money(r.tien) : '—'}</td></tr>` +
           (nhan(r).trim() ? `<tr><td colspan="5" style="border-top:0;padding-top:0">${nhan(r)}</td></tr>` : '')).join('') +
-        `</tbody></table><p class="muted">+N′ = số phút đi trễ so với ca đã duyệt. Phụ cấp ca gãy tính theo ngày, đã cộng vào tạm tính.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
+        `</tbody></table><p class="muted">+N′ = số phút đi trễ so với ca đã xếp. Tiền từng ngày đã gồm nhân lễ, ca đêm và trừ trễ; phụ cấp ca gãy và biên bản tính theo tháng.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
   } catch(e){ $('#congBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
 }
 
