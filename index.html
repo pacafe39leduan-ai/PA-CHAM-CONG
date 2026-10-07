@@ -311,15 +311,26 @@ const S = { ma:'', pin:'', ten:'', adminPin:'', ip:'', tab:'cc', ql:null, wifiOk
 const DUYET = 'Đã duyệt';
 
 // ---------------- tiện ích ----------------
+// Các lệnh chỉ đọc dữ liệu: gặp lỗi tạm thời của Google thì tự thử lại (không sợ ghi trùng)
+const CHI_DOC = ['getInit','dangNhap','nhanDien','caCuaToi','congCuaToi','adminVao','adminBangLuong'];
 async function call(fn, ...args){
   if (!/^https:\/\/script\.google\.com\//.test(API_URL)) throw new Error('Chưa dán link máy chủ (API_URL) vào file index.html.');
-  let r, j;
-  try { r = await fetch(API_URL, { method:'POST', body: JSON.stringify({ fn, args }) }); }
-  catch(e){ throw new Error('Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'); }
-  try { j = await r.json(); }
-  catch(e){ throw new Error('Máy chủ trả lời không hợp lệ. Kiểm tra lại link API_URL và quyền "Bất kỳ ai" khi triển khai.'); }
-  if (!j.ok) throw new Error(j.error);
-  return j.data;
+  const soLan = CHI_DOC.indexOf(fn) >= 0 ? 3 : 1;
+  let loi = null;
+  for (let lan = 1; lan <= soLan; lan++){
+    if (lan > 1) await sleep(1200 * (lan - 1));
+    let r, txt;
+    try { r = await fetch(API_URL, { method:'POST', body: JSON.stringify({ fn, args }), credentials:'omit', cache:'no-store' }); txt = await r.text(); }
+    catch(e){ loi = new Error('Không kết nối được máy chủ. Kiểm tra mạng (WiFi/4G) rồi thử lại.'); continue; }
+    let j = null;
+    try { j = JSON.parse(txt); } catch(e){}
+    if (j){ if (!j.ok) throw new Error(j.error); return j.data; }
+    // Google trả về trang lỗi thay vì dữ liệu: ghi lại vài chữ đầu để biết nguyên nhân
+    const goc = String(txt || '').replace(/<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+    loi = new Error('Máy chủ Google đang bận hoặc lỗi tạm thời' + (r ? ' (mã ' + r.status + ')' : '') + '. Đợi vài giây rồi thử lại.' + (goc ? ' Chi tiết: ' + goc : ''));
+    try { save('loi_may_chu', new Date().toLocaleString('vi-VN') + ' · ' + fn + ' · ' + (r ? r.status : '') + ' · ' + goc); } catch(e){}
+  }
+  throw loi;
 }
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function money(n){ return Math.round(n || 0).toLocaleString('vi-VN') + 'đ'; }
@@ -461,6 +472,11 @@ function ketThuc(html){
   if (html != null) $('#ccResult').innerHTML = html;
   $('#btnScan').textContent = /Bật camera|bị chặn|mở được camera|hỗ trợ camera|cho mở camera/i.test($('#ccResult').textContent) ? 'Bật camera' : 'Quét lại';
   $('#btnScan').classList.remove('hidden');
+  // iPhone: app ghim màn hình hoặc Zalo không mở được camera -> nút mở thẳng bằng Safari (Safari chạy được camera)
+  const loiCam = /Bật camera|bị chặn|mở được camera|hỗ trợ camera|cho mở camera|chưa lên hình/i.test($('#ccResult').textContent);
+  if (loiCam && LA_IOS && (DA_CAI_APP || TRONG_APP_KHAC) && !$('#btnSafari')){
+    $('#ccResult').insertAdjacentHTML('beforeend', `<a class="btn ghost" id="btnSafari" style="display:block;text-align:center;margin-top:10px;text-decoration:none" href="x-safari-${esc(location.href.split('#')[0])}">Mở bằng Safari</a><p class="muted" style="text-align:center;font-size:13px">Nếu nút không mở được: mở Safari, gõ địa chỉ trang chấm công rồi dùng ở đó.</p>`);
+  }
   const bl = $('#btnBaoLoi'); if (bl) bl.onclick = () => guiBaoLoi(bl);
 }
 // Kiểm tra WiFi, tải bộ nhận diện và mở camera CHẠY SONG SONG để vào quét nhanh hơn.

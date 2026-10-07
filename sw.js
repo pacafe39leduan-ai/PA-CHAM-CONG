@@ -2,7 +2,7 @@
 // - Lưu sẵn giao diện và bộ nhận diện khuôn mặt (~7 MB: face-api.js và các file *_model) để mở app nhanh, không tải lại mỗi lần.
 // - Không bao giờ lưu dữ liệu chấm công hay kết quả kiểm tra WiFi: những yêu cầu đó luôn đi thẳng lên mạng.
 // Khi sửa index.html, tăng số phiên bản dưới đây để điện thoại nhân viên nhận bản mới.
-const VERSION = 'pastaff-v17';
+const VERSION = 'pastaff-v19';
 const APP = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 const BO_NHAN_DIEN = 'faceapi-v1';   // bộ nhận diện ít khi đổi nên lưu riêng, không xóa khi đổi phiên bản app
 
