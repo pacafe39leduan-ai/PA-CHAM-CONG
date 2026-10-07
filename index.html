@@ -243,6 +243,8 @@
         <p class="muted">Trễ trên 30 phút. <b>Có</b> = phạt trừ vào lương, <b>Không</b> = bỏ qua biên bản (vẫn trừ giờ công theo quy định).</p>
         <div id="qlBB"></div></div>
 
+      <div class="card hidden" id="cardMat"><h3>Báo không nhận diện được</h3><p class="muted">Bấm "Xem ảnh" để chắc đúng người. Đồng ý = tính công đúng giờ báo và cho máy học thêm khuôn mặt đó.</p><div id="qlMatCho"></div></div>
+
       <div class="card"><h3>Xin đến trễ chờ duyệt</h3><div id="qlTre"></div></div>
 
       <div class="card"><h3>Đơn chờ duyệt: đăng ký ca, xin nghỉ, đổi ca</h3><p class="muted">Đồng ý xin nghỉ / đổi ca thì trang Roster tự cập nhật. Đăng ký ca là nguyện vọng: đồng ý = đã ghi nhận, bạn tự xếp vào Roster.</p><div id="qlDon"></div></div>
@@ -391,16 +393,38 @@ function taiModel(){
   return modelsReady;
 }
 const OPTS = () => new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
+const LA_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const TRONG_APP_KHAC = /Zalo|FBAN|FBAV|Instagram|Line\//i.test(navigator.userAgent);
+const DA_CAI_APP = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function loiQuyenCamera(){
+  if (TRONG_APP_KHAC) return 'Zalo/Facebook không cho mở camera. Bấm dấu ⋯ ở góc trên, chọn "Mở bằng trình duyệt".';
+  if (LA_IOS) return 'Camera đang bị chặn. Vào Cài đặt iPhone → Safari → Camera → chọn "Cho phép", rồi tắt hẳn app PA staff và mở lại. Nếu vẫn không được: xóa biểu tượng PA staff trên màn hình chính, mở link bằng Safari rồi cài lại.';
+  return 'Camera đang bị chặn. Bấm biểu tượng ổ khóa cạnh địa chỉ trang (hoặc Cài đặt trang) → Camera → Cho phép, rồi mở lại app.';
+}
 async function moCamera(video){
   dongCamera();
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('Trình duyệt không hỗ trợ camera. Hãy mở bằng Safari (iPhone) hoặc Chrome (Android).');
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    throw new Error(TRONG_APP_KHAC ? loiQuyenCamera() : 'Trình duyệt không hỗ trợ camera. Hãy mở bằng Safari (iPhone) hoặc Chrome (Android).');
+  // App cài trên iPhone đôi khi xin camera lúc chưa hiện hẳn lên màn hình sẽ hỏng: đợi app hiện rồi mới mở
+  if (document.hidden) await new Promise(r => { const f = () => { if (!document.hidden){ document.removeEventListener('visibilitychange', f); r(); } }; document.addEventListener('visibilitychange', f); });
+  let st;
   try {
-    CAM.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user', width:{ ideal:640 }, height:{ ideal:480 } }, audio:false });
-  } catch(e){ throw new Error('Không mở được camera. Hãy cho phép trang dùng camera rồi tải lại trang.'); }
-  video.srcObject = CAM.stream;
-  const st = CAM.stream;
-  try { await video.play(); } catch(e){}
-  if (!video.videoWidth) await new Promise(r => { video.onloadedmetadata = () => r(); setTimeout(r, 3000); });
+    st = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user', width:{ ideal:640 }, height:{ ideal:480 } }, audio:false });
+  } catch(e){
+    if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) throw new Error(loiQuyenCamera());
+    try { st = await navigator.mediaDevices.getUserMedia({ video: true, audio:false }); }   // thử lại với yêu cầu đơn giản nhất
+    catch(e2){
+      if (e2 && (e2.name === 'NotAllowedError' || e2.name === 'SecurityError')) throw new Error(loiQuyenCamera());
+      throw new Error('Không mở được camera (' + ((e2 && e2.name) || 'lỗi') + '). Tắt các app khác đang dùng camera rồi bấm "Bật camera".');
+    }
+  }
+  CAM.stream = st;
+  video.muted = true; video.setAttribute('playsinline', ''); video.setAttribute('muted', '');
+  video.srcObject = st;
+  try { await video.play(); }
+  catch(e){ throw new Error('Bấm nút "Bật camera" bên dưới để mở camera.'); }
+  if (!video.videoWidth) await new Promise(r => { video.onloadedmetadata = () => r(); setTimeout(r, 4000); });
+  if (!video.videoWidth) throw new Error('Camera chưa lên hình. Bấm nút "Bật camera" bên dưới để thử lại.');
   return st;
 }
 function dongCamera(){
@@ -435,7 +459,9 @@ function ketThuc(html){
   SC.run = false; dongCamera();
   $('#confirm').classList.add('hidden');
   if (html != null) $('#ccResult').innerHTML = html;
+  $('#btnScan').textContent = /Bật camera|bị chặn|mở được camera|hỗ trợ camera|cho mở camera/i.test($('#ccResult').textContent) ? 'Bật camera' : 'Quét lại';
   $('#btnScan').classList.remove('hidden');
+  const bl = $('#btnBaoLoi'); if (bl) bl.onclick = () => guiBaoLoi(bl);
 }
 // Kiểm tra WiFi, tải bộ nhận diện và mở camera CHẠY SONG SONG để vào quét nhanh hơn.
 // Máy chủ vẫn kiểm tra WiFi lần nữa lúc nhận diện, nên hiện camera trước không ảnh hưởng an toàn.
@@ -524,17 +550,19 @@ async function vongQuet(phien){
 async function nhanDien(phien){
   camState('go'); hint('Đang nhận diện…');
   const video = $('#video');
+  let anh = '', tb = null;
+  S.baoLoi = null;
   try {
     // Lấy 3 lần liên tiếp rồi lấy trung bình để kết quả ổn định hơn
     const OPT_KY = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 });
-    const ds = []; let anh = '';
+    const ds = []; anh = '';
     for (let i = 0; i < 6 && ds.length < 3; i++){
       const d = await faceapi.detectSingleFace(video, OPT_KY).withFaceLandmarks().withFaceDescriptor();
       if (d){ ds.push(d.descriptor); if (!anh) anh = chupAnh(video); }
       await sleep(80);
     }
     if (!ds.length) throw new Error('Mất khuôn mặt trong khung hình. Hãy thử lại.');
-    const tb = Array.from(ds[0]).map((_, i) => ds.reduce((t, x) => t + x[i], 0) / ds.length);
+    tb = Array.from(ds[0]).map((_, i) => ds.reduce((t, x) => t + x[i], 0) / ds.length);
     $('#snap').src = anh; $('#snap').classList.remove('hidden'); $('#video').classList.add('hidden');
     dongCamera();
     await S.wifiP;
@@ -546,7 +574,24 @@ async function nhanDien(phien){
     if (phien !== SC.phien) return;
     hint(''); camState('err');
     const them = /Không nhận ra/.test(e.message) ? ' Nếu bạn chưa đăng ký khuôn mặt, hãy báo chủ quán.' : '';
-    ketThuc(`<div class="errbox">${esc(e.message + them)}</div>`);
+    // Lỗi nhận diện (không phải lỗi WiFi/mạng): cho phép gửi báo cáo kèm ảnh để chủ quán duyệt công
+    const choBao = tb && anh && $('#ccNv').value && !/WiFi|kết nối|Máy chủ|hết hạn/i.test(e.message);
+    if (choBao) S.baoLoi = { ma: $('#ccNv').value, tb, anh, loi: e.message };
+    ketThuc(`<div class="errbox">${esc(e.message + them)}</div>` +
+      (choBao ? '<button class="btn ghost" id="btnBaoLoi" style="margin-top:10px">Báo cáo không nhận diện được</button><p class="muted" style="text-align:center;font-size:13px">Gửi ảnh vừa quét cho chủ quán. Chủ quán đồng ý thì công được tính đúng giờ này.</p>' : ''));
+  }
+}
+async function guiBaoLoi(btn){
+  const b = S.baoLoi; if (!b) return;
+  btn.disabled = true; btn.textContent = 'Đang gửi…';
+  try {
+    if (!S.ip || Date.now() - (S.ipLuc || 0) > 60000){ S.ip = await getIP(); S.ipLuc = Date.now(); }
+    const r = await call('baoLoiMat', b.ma, b.tb, b.anh, S.ip, b.loi);
+    S.baoLoi = null;
+    $('#ccResult').innerHTML = `<div class="okbox">Đã gửi báo cáo lúc <b>${esc(r.gio)}</b>. Chủ quán đồng ý thì công được tính đúng giờ này và máy sẽ học thêm khuôn mặt của bạn. Xem kết quả ở tab Ca làm.</div>`;
+  } catch(e){
+    btn.disabled = false; btn.textContent = 'Báo cáo không nhận diện được';
+    toast(e.message, true);
   }
 }
 async function xacNhan(r, anh, phien){
@@ -765,6 +810,11 @@ function renderQL(d){
       <span class="muted">${esc(v.ngay)} vào ${esc(v.vao)} · trễ ${v.muon} phút</span><br><span class="late">Phạt ${money(v.phat)}</span></div>
       <div class="acts"><button class="sm" onclick="bienBan('${esc(v.id)}','Có')">Có</button><button class="sm ghost" onclick="bienBan('${esc(v.id)}','Không')">Không</button></div></div>`).join('')
     : '<p class="muted">Không có biên bản nào chờ quyết định.</p>';
+  const mc = d.matCho || [];
+  $('#cardMat').classList.toggle('hidden', !mc.length);
+  $('#qlMatCho').innerHTML = mc.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> · ${esc(x.luc)}<br><span class="muted">${esc(x.loi)}</span><br>
+      <a href="${esc(x.anh)}" target="_blank" rel="noopener">Xem ảnh</a></div>
+      <div class="acts"><button class="sm ok" onclick="duyetMat('${esc(x.id)}',true)">Đồng ý</button><button class="sm ghost" onclick="duyetMat('${esc(x.id)}',false)">Từ chối</button></div></div>`).join('');
   $('#qlTre').innerHTML = d.xinTreCho.length ? d.xinTreCho.map(x => `<div class="row"><div><b>${esc(x.ten)}</b><br>
       ${ngayVN(x.ngay)} · xin trễ ${x.phut} phút<br><span class="muted">${esc(x.lyDo)}</span></div>
       <div class="acts"><button class="sm ok" onclick="duyetTre('${esc(x.id)}',true)">Đồng ý</button><button class="sm ghost" onclick="duyetTre('${esc(x.id)}',false)">Từ chối</button></div></div>`).join('')
@@ -867,6 +917,9 @@ async function chotRa(id){
   const html = `<p><b>${esc(r.ten)}</b> vào ca lúc ${esc(r.vao)}</p><label>Giờ ra</label><input type="datetime-local" id="fRa" value="${esc(r.vaoISO)}">`;
   if (!await modal('Chốt giờ ra', html, 'Lưu')) return;
   try { renderQL(await call('adminChotRa', S.adminPin, id, $('#fRa').value, S.ip)); toast('Đã chốt giờ ra'); loadLuong(); } catch(e){ toast(e.message, true); }
+}
+async function duyetMat(id, dongY){
+  try { const d = await call('adminDuyetMat', S.adminPin, id, dongY, S.ip); renderQL(d); toast(d.thongBao || (dongY ? 'Đã đồng ý' : 'Đã từ chối')); } catch(e){ toast(e.message, true); }
 }
 async function duyetDon(id, dongY){
   try { renderQL(await call('adminDuyetDon', S.adminPin, id, dongY, S.ip)); toast(dongY ? 'Đã đồng ý' : 'Đã từ chối'); } catch(e){ toast(e.message, true); }
