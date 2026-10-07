@@ -112,6 +112,8 @@
   <section id="tab-cc" class="tab">
     <div class="card">
       <div id="wifi" class="badge">Đang kiểm tra WiFi…</div>
+      <label class="muted" for="ccNv" style="display:block;margin:12px 0 4px">Chấm công cho</label>
+      <select id="ccNv"></select>
       <div class="cam" id="cam"><video id="video" playsinline muted autoplay></video><img id="snap" class="hidden" alt=""></div>
       <div class="hint" id="hint">Đang chuẩn bị…</div>
 
@@ -126,7 +128,7 @@
 
       <div id="ccResult"></div>
       <button class="btn hidden" id="btnScan">Quét lại</button>
-      <p class="muted" style="text-align:center;margin-top:12px">Kết nối WiFi quán, tắt 4G. Nhìn thẳng camera rồi chớp mắt 1 lần.</p>
+      <p class="muted" style="text-align:center;margin-top:12px">Kết nối WiFi quán, tắt 4G. Chọn đúng tên, nhìn thẳng camera rồi chớp mắt 1 lần.</p>
     </div>
     <div class="card hidden" id="install">
       <img src="icon-192.png" alt="">
@@ -464,6 +466,7 @@ async function batDauQuet(){
     if (w.textContent === 'Đang kiểm tra WiFi…'){ w.className = 'badge bad'; w.textContent = 'Không kiểm tra được WiFi'; }
     SC.phien++; hint(''); camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`);
   });
+  if (!$('#ccNv').value){ hint('Chọn tên của bạn ở ô phía trên để bắt đầu'); return; }
   // 2) Camera + bộ nhận diện cùng lúc
   try {
     const camP = moCamera($('#video'));
@@ -522,14 +525,21 @@ async function nhanDien(phien){
   camState('go'); hint('Đang nhận diện…');
   const video = $('#video');
   try {
-    const d = await faceapi.detectSingleFace(video, OPTS()).withFaceLandmarks().withFaceDescriptor();
-    if (!d) throw new Error('Mất khuôn mặt trong khung hình. Hãy thử lại.');
-    const anh = chupAnh(video);
+    // Lấy 3 lần liên tiếp rồi lấy trung bình để kết quả ổn định hơn
+    const OPT_KY = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 });
+    const ds = []; let anh = '';
+    for (let i = 0; i < 6 && ds.length < 3; i++){
+      const d = await faceapi.detectSingleFace(video, OPT_KY).withFaceLandmarks().withFaceDescriptor();
+      if (d){ ds.push(d.descriptor); if (!anh) anh = chupAnh(video); }
+      await sleep(80);
+    }
+    if (!ds.length) throw new Error('Mất khuôn mặt trong khung hình. Hãy thử lại.');
+    const tb = Array.from(ds[0]).map((_, i) => ds.reduce((t, x) => t + x[i], 0) / ds.length);
     $('#snap').src = anh; $('#snap').classList.remove('hidden'); $('#video').classList.add('hidden');
     dongCamera();
     await S.wifiP;
     if (!S.ip || Date.now() - (S.ipLuc || 0) > 60000){ S.ip = await getIP(); S.ipLuc = Date.now(); }
-    const r = await call('nhanDien', Array.from(d.descriptor), S.ip);
+    const r = await call('nhanDien', tb, S.ip, $('#ccNv').value);
     if (phien !== SC.phien) return;
     xacNhan(r, anh, phien);
   } catch(e){
@@ -777,12 +787,12 @@ async function dangKyMat(ma){
     rh('Đang tải bộ nhận diện…'); await taiModel();
     rh('Đang mở camera…'); await moCamera($('#regVideo'));
     const video = $('#regVideo');
+    const OPT_KY = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 });
     while (REG.run && mau.length < can){
-      const d = await faceapi.detectSingleFace(video, OPTS()).withFaceLandmarks().withFaceDescriptor();
+      const d = await faceapi.detectSingleFace(video, OPT_KY).withFaceLandmarks().withFaceDescriptor();
       if (!REG.run) break;
       if (!d) rh('Đưa khuôn mặt vào khung tròn');
-      else if (d.detection.box.width / video.videoWidth < 0.25) rh('Đưa điện thoại lại gần hơn');
-      else if (ear(d.landmarks) < 0.2) rh('Mở mắt, nhìn vào camera');
+      else if (d.detection.box.width / video.videoWidth < 0.2) rh('Đưa điện thoại lại gần hơn');
       else {
         mau.push(Array.from(d.descriptor));
         $('#regBar').style.width = (mau.length / can * 100) + '%';
@@ -930,9 +940,20 @@ async function init(){
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && S.tab === 'cc' && SC.run){ SC.phien++; ketThuc(null); hint('Bấm Quét lại để chấm công'); }
   });
+  const toiMa = load('toi_ma'), toiTen = load('toi_ten');
+  $('#ccNv').innerHTML = toiMa ? `<option value="${esc(toiMa)}">${esc(toiTen)}</option>` : '<option value="">— Chọn tên của bạn —</option>';
+  $('#ccNv').onchange = () => {
+    const o = $('#ccNv').selectedOptions[0];
+    save('toi_ma', $('#ccNv').value); save('toi_ten', o ? o.textContent.replace(/ \(chưa đăng ký mặt\)$/, '') : '');
+    if (S.tab === 'cc') batDauQuet();
+  };
   showTab('cc');
   try {
     const d = await call('getInit', '');
+    const chon = $('#ccNv').value;
+    $('#ccNv').innerHTML = '<option value="">— Chọn tên của bạn —</option>' + d.nhanVien.map(n => `<option value="${esc(n.ma)}"${n.coMat === false ? ' disabled' : ''}>${esc(n.ten)}${n.coMat === false ? ' (chưa đăng ký mặt)' : ''}</option>`).join('');
+    $('#ccNv').value = chon;
+    if ($('#ccNv').value !== chon){ save('toi_ma', ''); if (S.tab === 'cc') batDauQuet(); }
     $('#tenQuan').textContent = d.tenQuan; document.title = "PA staff";
     $('#nv').innerHTML = '<option value="">— Chọn tên của bạn —</option>' + d.nhanVien.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
     const nho = load('cc_ma'); if (nho) $('#nv').value = nho;
