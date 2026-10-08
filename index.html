@@ -33,7 +33,7 @@
   .card{background:var(--trang);border:1px solid var(--vien);border-radius:14px;padding:16px;margin-bottom:14px}
   h3{margin:0 0 10px;font-size:16px;color:var(--nau-dam)}
   label{display:block;font-size:14px;color:var(--mo);margin:10px 0 4px}
-  input,select{width:100%;padding:12px;border:1px solid var(--vien);border-radius:10px;font-size:16px;background:#fff;color:var(--chu)}
+  input,select,textarea{width:100%;padding:12px;font-family:inherit;border:1px solid var(--vien);border-radius:10px;font-size:16px;background:#fff;color:var(--chu)}
   .two{display:flex;gap:10px}.two>*{flex:1}
   button{font-family:inherit}
   .btn{display:block;width:100%;padding:13px;border:0;border-radius:10px;background:var(--nau);color:#fff;font-size:16px;font-weight:700;margin-top:12px;text-align:center;text-decoration:none}
@@ -261,7 +261,7 @@
       </div>
 
       <div class="card">
-        <h3>Bảng lương</h3>
+        <div class="row" style="padding-top:0"><h3 style="margin:0">Bảng lương</h3><button class="sm" id="btnKhauTru">+ Biên bản / Truy thu</button></div>
         <select id="thangQL"></select>
         <div id="luongBody"></div>
         <button class="btn ghost" id="btnXuat">Xuất bảng lương ra Google Sheets</button>
@@ -340,9 +340,9 @@ function ngayVN(s){ const p = s.split('-'); const t = ['CN','T2','T3','T4','T5',
 function save(k, v){ try { localStorage.setItem(k, v); } catch(e){} }
 function load(k){ try { return localStorage.getItem(k) || ''; } catch(e){ return ''; } }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-function toast(msg, bad){
+function toast(msg, bad, ms){
   const t = $('#toast'); t.textContent = msg; t.className = 'show' + (bad ? ' bad' : '');
-  clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, 4000);
+  clearTimeout(t._h); t._h = setTimeout(() => { t.className = ''; }, ms || 4000);
 }
 async function lock(btn, fn){
   if (btn.disabled) return; const old = btn.textContent; btn.disabled = true; btn.textContent = 'Đang xử lý…';
@@ -760,7 +760,9 @@ async function loadCong(){
       ${dong('Phụ cấp ca gãy', d.pcCaGay, `${d.ngayCaGay || 0} ngày × 10.000đ`)}
       ${dong('Phụ cấp ca đêm', d.pcDem, `${d.gioDem || 0} giờ (0h–6h) × 5.000đ`)}
       ${dong('Trừ đi trễ', d.truTienTre, `${d.lanMuon || 0} lần trễ, tổng ${d.phutMuon || 0} phút · trừ ${d.truGioTre || 0} giờ công`, true)}
-      ${dong('Phạt biên bản', d.phatBienBan, d.bienBanCho ? `${d.bienBanCho} biên bản chờ chủ quán quyết định` : 'Biên bản trễ trên 30 phút', true)}
+      ${dong('Phạt đi trễ', d.phatBienBan, d.bienBanCho ? `${d.bienBanCho} biên bản trễ chờ chủ quán quyết định` : 'Biên bản trễ trên 30 phút', true)}
+      ${dong('Biên bản vi phạm', d.bbViPham, (d.khauTru || []).filter(x => x.loai !== 'Truy thu').map(x => esc(x.ngay + ': ' + x.noiDung + ' (−' + money(x.tien) + ')')).join('<br>') || 'Không có', true)}
+      ${dong('Tiền truy thu', d.truyThu, (d.khauTru || []).filter(x => x.loai === 'Truy thu').map(x => esc(x.ngay + ': ' + x.noiDung + ' (−' + money(x.tien) + ')')).join('<br>') || 'Không có', true)}
       <tr><th>Tạm tính</th><th class="r" style="font-size:17px">${money(d.tong)}</th></tr></tbody></table>
       ${d.tangCaCho ? `<p class="muted">${d.tangCaCho} lượt tăng ca đang chờ chủ quán duyệt.</p>` : ''}` : '';
     const nhan = r => [r.heLe > 1 ? `<span class="tag ok">Lễ x${r.heLe}</span>` : '', r.gioDem > 0 ? `<span class="tag wait">Đêm ${r.gioDem}h</span>` : '',
@@ -771,7 +773,7 @@ async function loadCong(){
       (d.ds.length ? `<h3 style="margin:16px 0 4px">Từng ngày</h3><table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
         d.ds.map(r => `<tr><td>${r.ngay}</td><td>${r.vao}${r.muon > 0 ? ` <span class="late">+${r.muon}′</span>` : ''}${r.coPhep ? ' <span class="tag ok">có phép</span>' : ''}</td><td>${r.ra}</td><td class="r">${r.gio || '—'}</td><td class="r">${r.ra !== '—' ? money(r.tien) : '—'}</td></tr>` +
           (nhan(r).trim() ? `<tr><td colspan="5" style="border-top:0;padding-top:0">${nhan(r)}</td></tr>` : '')).join('') +
-        `</tbody></table><p class="muted">+N′ = số phút đi trễ so với ca đã xếp. Tiền từng ngày đã gồm nhân lễ, ca đêm và trừ trễ; phụ cấp ca gãy và biên bản tính theo tháng.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
+        `</tbody></table><p class="muted">+N′ = số phút đi trễ so với ca đã xếp. Tiền từng ngày đã gồm nhân lễ, ca đêm và trừ trễ; phụ cấp ca gãy, biên bản và truy thu tính theo tháng.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
   } catch(e){ $('#congBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
 }
 
@@ -938,7 +940,11 @@ async function duyetMat(id, dongY){
   try { const d = await call('adminDuyetMat', S.adminPin, id, dongY, S.ip); renderQL(d); toast(d.thongBao || (dongY ? 'Đã đồng ý' : 'Đã từ chối')); } catch(e){ toast(e.message, true); }
 }
 async function duyetDon(id, dongY){
-  try { renderQL(await call('adminDuyetDon', S.adminPin, id, dongY, S.ip)); toast(dongY ? 'Đã đồng ý' : 'Đã từ chối'); } catch(e){ toast(e.message, true); }
+  try {
+    const d = await call('adminDuyetDon', S.adminPin, id, dongY, S.ip); renderQL(d);
+    const m = d.thongBao || (dongY ? 'Đã đồng ý' : 'Đã từ chối');
+    toast(m, /Chưa sửa được/.test(m), /Roster/.test(m) ? 8000 : 4000);
+  } catch(e){ toast(e.message, true); }
 }
 async function tuChoiCa(id){
   try { renderQL(await call('adminTuChoiCa', S.adminPin, id, S.ip)); toast('Đã từ chối'); } catch(e){ toast(e.message, true); }
@@ -955,8 +961,32 @@ function chiTietLuong(m){
   if (m.pcCaGay) p.push(`Ca gãy ${m.ngayCaGay} ngày +${money(m.pcCaGay)}`);
   if (m.pcDem) p.push(`Đêm ${m.gioDem}h +${money(m.pcDem)}`);
   if (m.truTienTre) p.push(`Trễ −${m.truGioTre}h −${money(m.truTienTre)}`);
-  if (m.phatBienBan) p.push(`Biên bản −${money(m.phatBienBan)}`);
+  if (m.phatBienBan) p.push(`Phạt trễ −${money(m.phatBienBan)}`);
+  if (m.bbViPham) p.push(`Biên bản vi phạm −${money(m.bbViPham)}`);
+  if (m.truyThu) p.push(`Truy thu −${money(m.truyThu)}`);
   return p.join(' · ');
+}
+function dsKhauTruHtml(m){
+  return (m.khauTru || []).map(x => `<br><span class="tag bad">${x.loai === 'Truy thu' ? 'Truy thu' : 'Biên bản'} ${esc(x.ngay)} −${money(x.tien)}</span>
+    <span class="muted" style="font-size:12px">${esc(x.noiDung)}</span> <button type="button" class="link" onclick="xoaKhauTru('${esc(x.id)}')">xóa</button>`).join('');
+}
+async function themKhauTru(){
+  if (!S.ql) return;
+  const html = `<label>Nhân viên</label><select id="kNv"><option value="">— Chọn nhân viên —</option>${S.ql.nhanVien.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('')}</select>
+    <label>Loại</label><select id="kLoai"><option>Biên bản vi phạm</option><option>Truy thu</option></select>
+    <div class="two"><div><label>Ngày</label><input type="date" id="kNgay" value="${today()}"></div>
+    <div><label>Số tiền (đ)</label><input type="number" id="kTien" inputmode="numeric" min="1000" step="1000" placeholder="50000"></div></div>
+    <label>Nội dung vi phạm / lý do truy thu</label><textarea id="kNd" rows="3" placeholder="VD: Không mặc đồng phục / Làm vỡ 2 ly thủy tinh"></textarea>
+    <p class="muted">Số tiền trừ thẳng vào lương của tháng có ngày này. Nhân viên thấy khoản trừ trong mục Công của tôi.</p>`;
+  if (!await modal('Lập biên bản / Truy thu', html, 'Lưu')) return;
+  try {
+    await call('adminThemKhauTru', S.adminPin, $('#kNv').value, $('#kLoai').value, $('#kNgay').value, $('#kNd').value, Number($('#kTien').value));
+    toast('Đã lưu, đã trừ vào lương'); loadLuong();
+  } catch(e){ toast(e.message, true); }
+}
+async function xoaKhauTru(id){
+  if (!await modal('Xóa khoản trừ này?', '<p class="muted">Lương sẽ được tính lại không có khoản này.</p>', 'Xóa')) return;
+  try { await call('adminXoaKhauTru', S.adminPin, id); toast('Đã xóa'); loadLuong(); } catch(e){ toast(e.message, true); }
 }
 async function loadLuong(){
   $('#luongBody').innerHTML = '<p class="muted">Đang tính…</p>'; $('#luongLink').innerHTML = '';
@@ -966,7 +996,7 @@ async function loadLuong(){
     let g = 0, t = 0;
     $('#luongBody').innerHTML = `<table><thead><tr><th>Nhân viên</th><th class="r">Giờ</th><th class="r">Tổng lương</th></tr></thead><tbody>` +
       ds.map(m => { g += m.gio; t += m.tong; return `<tr><td><b>${esc(m.ten)}</b> <span class="muted">· ${m.soCa} ca</span><br><span class="muted" style="font-size:12px">${chiTietLuong(m)}</span>
-        ${m.lanMuon ? `<br><span class="late">Trễ ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.bienBanCho ? `<br><span class="tag wait">${m.bienBanCho} biên bản chờ quyết định</span>` : ''}${m.tangCaCho ? `<br><span class="tag wait">${m.tangCaCho} tăng ca chờ duyệt</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}</td>
+        ${m.lanMuon ? `<br><span class="late">Trễ ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.bienBanCho ? `<br><span class="tag wait">${m.bienBanCho} biên bản chờ quyết định</span>` : ''}${m.tangCaCho ? `<br><span class="tag wait">${m.tangCaCho} tăng ca chờ duyệt</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}${dsKhauTruHtml(m)}</td>
         <td class="r">${m.gio}</td><td class="r"><b>${money(m.tong)}</b></td></tr>`; }).join('') +
       `<tr><th>Tổng</th><th class="r">${Math.round(g*100)/100}</th><th class="r">${money(t)}</th></tr></tbody></table>`;
   } catch(e){ $('#luongBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
@@ -1003,6 +1033,7 @@ async function init(){
   $('#btnThemCa').onclick = () => caForm('');
   $('#thangQL').onchange = loadLuong;
   $('#btnXuat').onclick = e => lock(e.currentTarget, xuatLuong);
+  $('#btnKhauTru').onclick = themKhauTru;
   $('#btnDoiPin').onclick = doiPin;
   $('#btnQLOut').onclick = () => { S.adminPin = ''; S.ql = null; loadQL(); };
   $('#regClose').onclick = () => { REG.run = false; dongCamera(); $('#reg').classList.add('hidden'); };

@@ -2,12 +2,12 @@
 // - Lưu sẵn giao diện và bộ nhận diện khuôn mặt (~7 MB: face-api.js và các file *_model) để mở app nhanh, không tải lại mỗi lần.
 // - Không bao giờ lưu dữ liệu chấm công hay kết quả kiểm tra WiFi: những yêu cầu đó luôn đi thẳng lên mạng.
 // Khi sửa index.html, tăng số phiên bản dưới đây để điện thoại nhân viên nhận bản mới.
-const VERSION = 'pastaff-v19';
+const VERSION = 'pastaff-v22';
 const APP = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 const BO_NHAN_DIEN = 'faceapi-v1';   // bộ nhận diện ít khi đổi nên lưu riêng, không xóa khi đổi phiên bản app
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(APP)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(APP.map(u => new Request(u, { cache: 'no-cache' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -37,8 +37,9 @@ self.addEventListener('fetch', e => {
   }
 
   // Giao diện app: ưu tiên bản mới trên mạng, mất mạng thì dùng bản đã lưu
+  // cache:'no-cache' = luôn hỏi GitHub bản mới nhất (không dùng bản trình duyệt giữ tạm 10 phút)
   e.respondWith(
-    fetch(req).then(res => {
+    fetch(req.url, { cache: 'no-cache' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req).then(hit => hit || caches.match('./index.html')))
