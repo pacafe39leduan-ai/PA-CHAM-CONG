@@ -639,7 +639,7 @@ async function xacNhan(r, anh, phien){
   try {
     const k = await call('chamCongMat', r.token, anh);
     const msg = k.loai === 'vao'
-      ? `${k.ten} đã VÀO CA lúc ${k.gio}` + (k.muon > 0 ? ` (trễ ${k.muon} phút)` : '') + (k.ketThuc ? ` · ca kết thúc ${k.ketThuc}` : '')
+      ? `${k.ten} đã VÀO CA lúc ${k.gio}` + (k.muon > 0 ? ` (trễ ${k.muon} phút)` : '') + (k.tinhTu ? ` · công tính từ ${k.tinhTu} (giờ bắt đầu ca)` : '') + (k.ketThuc ? ` · ca kết thúc ${k.ketThuc}` : '')
       : `${k.ten} đã RA CA lúc ${k.gio} — làm ${k.soGio} giờ`;
     ketThuc(`<div class="okbox">${esc(msg)}</div>` + (k.canhBao ? `<div class="errbox" style="font-weight:500">${esc(k.canhBao)}</div>` : ''));
   } catch(e){ camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`); }
@@ -768,12 +768,12 @@ async function loadCong(){
     const nhan = r => [r.heLe > 1 ? `<span class="tag ok">Lễ x${r.heLe}</span>` : '', r.gioDem > 0 ? `<span class="tag wait">Đêm ${r.gioDem}h</span>` : '',
       r.truGio ? `<span class="tag bad">Trễ −${r.truGio}h</span>` : '', r.phat ? `<span class="tag bad">BB −${money(r.phat)}</span>` : '',
       r.phatCho ? `<span class="tag wait">BB chờ xét</span>` : '', r.tangCa ? `<span class="tag ok">Tăng ca ${r.tangCa}′</span>` : '',
-      r.tinhDen ? `<span class="tag wait">Tính đến ${r.tinhDen}</span>` : '', r.tangCaCho ? `<span class="tag wait">Tăng ca chờ duyệt</span>` : ''].join(' ');
+      r.tinhTu ? `<span class="tag wait">Tính từ ${r.tinhTu}</span>` : '', r.tinhDen ? `<span class="tag wait">Tính đến ${r.tinhDen}</span>` : '', r.tangCaCho ? `<span class="tag wait">Tăng ca chờ duyệt</span>` : ''].join(' ');
     $('#congBody').innerHTML = `<div class="sum"><div><span>Tổng giờ</span><b>${d.gio || 0}</b></div><div><span>Tạm tính</span><b>${money(d.tong)}</b></div></div>` + bang +
       (d.ds.length ? `<h3 style="margin:16px 0 4px">Từng ngày</h3><table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
         d.ds.map(r => `<tr><td>${r.ngay}</td><td>${r.vao}${r.muon > 0 ? ` <span class="late">+${r.muon}′</span>` : ''}${r.coPhep ? ' <span class="tag ok">có phép</span>' : ''}</td><td>${r.ra}</td><td class="r">${r.gio || '—'}</td><td class="r">${r.ra !== '—' ? money(r.tien) : '—'}</td></tr>` +
           (nhan(r).trim() ? `<tr><td colspan="5" style="border-top:0;padding-top:0">${nhan(r)}</td></tr>` : '')).join('') +
-        `</tbody></table><p class="muted">+N′ = số phút đi trễ so với ca đã xếp. Tiền từng ngày đã gồm nhân lễ, ca đêm và trừ trễ; phụ cấp ca gãy, biên bản và truy thu tính theo tháng.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
+        `</tbody></table><p class="muted">+N′ = số phút đi trễ so với ca đã xếp. Vào sớm thì công tính từ giờ bắt đầu ca; giờ công mỗi ca làm tròn xuống 0,5 giờ. Tiền từng ngày đã gồm nhân lễ, ca đêm và trừ trễ; phụ cấp ca gãy, biên bản và truy thu tính theo tháng.</p>` : '<p class="muted">Chưa có công trong tháng này.</p>');
   } catch(e){ $('#congBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
 }
 
