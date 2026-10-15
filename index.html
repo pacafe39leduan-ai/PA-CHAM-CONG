@@ -240,7 +240,7 @@
       <div class="card"><h3>Đang trong ca / quên chấm ra</h3><div id="qlMo"></div></div>
 
       <div class="card"><h3>Biên bản đi trễ chờ quyết định</h3>
-        <p class="muted">Trễ trên 30 phút. <b>Có</b> = phạt trừ vào lương, <b>Không</b> = bỏ qua biên bản (vẫn trừ giờ công theo quy định).</p>
+        <p class="muted">Trễ 46–60 phút: 50.000đ, trên 60 phút: 100.000đ. <b>Có</b> = phạt trừ vào lương, <b>Không</b> = bỏ qua biên bản (vẫn trừ giờ công theo quy định).</p>
         <div id="qlBB"></div></div>
 
       <div class="card hidden" id="cardMat"><h3>Báo không nhận diện được</h3><p class="muted">Bấm "Xem ảnh" để chắc đúng người. Đồng ý = tính công đúng giờ báo và cho máy học thêm khuôn mặt đó.</p><div id="qlMatCho"></div></div>
@@ -760,7 +760,7 @@ async function loadCong(){
       ${dong('Phụ cấp ca gãy', d.pcCaGay, `${d.ngayCaGay || 0} ngày × 10.000đ`)}
       ${dong('Phụ cấp ca đêm', d.pcDem, `${d.gioDem || 0} giờ (0h–6h) × 5.000đ`)}
       ${dong('Trừ đi trễ', d.truTienTre, `${d.lanMuon || 0} lần trễ, tổng ${d.phutMuon || 0} phút · trừ ${d.truGioTre || 0} giờ công`, true)}
-      ${dong('Phạt đi trễ', d.phatBienBan, d.bienBanCho ? `${d.bienBanCho} biên bản trễ chờ chủ quán quyết định` : 'Biên bản trễ trên 30 phút', true)}
+      ${dong('Phạt đi trễ', d.phatBienBan, d.bienBanCho ? `${d.bienBanCho} biên bản trễ chờ chủ quán quyết định` : 'Biên bản khi trễ trên 45 phút', true)}
       ${dong('Biên bản vi phạm', d.bbViPham, (d.khauTru || []).filter(x => x.loai !== 'Truy thu').map(x => esc(x.ngay + ': ' + x.noiDung + ' (−' + money(x.tien) + ')')).join('<br>') || 'Không có', true)}
       ${dong('Tiền truy thu', d.truyThu, (d.khauTru || []).filter(x => x.loai === 'Truy thu').map(x => esc(x.ngay + ': ' + x.noiDung + ' (−' + money(x.tien) + ')')).join('<br>') || 'Không có', true)}
       <tr><th>Tạm tính</th><th class="r" style="font-size:17px">${money(d.tong)}</th></tr></tbody></table>
