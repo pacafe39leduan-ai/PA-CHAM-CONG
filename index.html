@@ -48,7 +48,9 @@
   .badge{display:block;text-align:center;padding:10px;border-radius:10px;font-weight:700;font-size:15px;background:var(--kem)}
   .badge.ok{background:var(--xanh-nhat);color:var(--xanh)} .badge.bad{background:var(--do-nhat);color:var(--do)}
   .okbox,.errbox{padding:12px;border-radius:10px;margin-top:12px;font-weight:600;text-align:center}
-  .okbox{background:var(--xanh-nhat);color:var(--xanh)} .errbox{background:var(--do-nhat);color:var(--do)}
+  .okbox{background:var(--xanh-nhat);color:var(--xanh)}
+  .dangluu{background:#fff4d6;color:#7a4b00;border:2px solid #f0b429;border-radius:10px;padding:10px;font-weight:800;font-size:17px;line-height:1.35}
+  .dangluu small{font-weight:600;font-size:13px} .errbox{background:var(--do-nhat);color:var(--do)}
 
   /* camera */
   /* Safari trên iPhone không cắt tròn video bị lật gương: cắt bằng clip-path + mask, viền tròn vẽ đè lên trên */
@@ -312,7 +314,7 @@ const DUYET = 'Đã duyệt';
 
 // ---------------- tiện ích ----------------
 // Các lệnh chỉ đọc dữ liệu: gặp lỗi tạm thời của Google thì tự thử lại (không sợ ghi trùng)
-const CHI_DOC = ['getInit','dangNhap','nhanDien','caCuaToi','congCuaToi','adminVao','adminBangLuong'];
+const CHI_DOC = ['getInit','dangNhap','nhanDien','caCuaToi','congCuaToi','adminVao','adminBangLuong','chamCongMat'];
 async function call(fn, ...args){
   if (!/^https:\/\/script\.google\.com\//.test(API_URL)) throw new Error('Chưa dán link máy chủ (API_URL) vào file index.html.');
   const soLan = CHI_DOC.indexOf(fn) >= 0 ? 3 : 1;
@@ -616,6 +618,7 @@ async function xacNhan(r, anh, phien){
   const a = $('#cAct');
   a.className = 'act ' + r.loai;
   a.textContent = r.loai === 'vao' ? 'VÀO CA' : `RA CA (vào lúc ${r.gioVao})`;
+  $('#cCount').textContent = '';
   $('#confirm').classList.remove('hidden');
   let huy = false, ok = false;
   $('#btnKhong').onclick = () => { huy = true; };
@@ -626,7 +629,7 @@ async function xacNhan(r, anh, phien){
     $('#cCount').textContent = '';
     while (!ok && !huy && phien === SC.phien) await sleep(100);
     $('#cWarn').classList.add('hidden'); $('#btnMoiCa').classList.add('hidden');
-  } else {
+  } else if (r.loai === 'vao') {
     for (let i = 3; i > 0; i--){
       $('#cCount').textContent = `Tự động lưu sau ${i} giây…`;
       for (let k = 0; k < 10; k++){ await sleep(100); if (huy || phien !== SC.phien) break; }
@@ -635,14 +638,25 @@ async function xacNhan(r, anh, phien){
   }
   if (phien !== SC.phien) return;
   if (huy){ camState(''); return ketThuc('<div class="errbox">Đã hủy. Bấm Quét lại và nhìn thẳng camera.</div>'); }
-  $('#cCount').textContent = 'Đang lưu…'; $('#btnKhong').classList.add('hidden');
+  $('#cCount').innerHTML = '<div class="dangluu">⏳ ĐANG LƯU – CHƯA XONG<br><small>Đừng tắt màn hình hay thoát app cho tới khi hiện khung xanh</small></div>';
+  $('#btnKhong').classList.add('hidden');
   try {
-    const k = await call('chamCongMat', r.token, anh);
+    let k = null;
+    for (let lan = 1; ; lan++){
+      try { k = await call('chamCongMat', r.token, anh); break; }
+      catch(e){
+        if (lan >= 3 || !/lock|khóa|timed? ?out|Service|bận|tạm thời|kết nối|Đang lưu/i.test(e.message)) throw e;
+        $('#cCount').innerHTML = '<div class="dangluu">⏳ Máy chủ đang bận, đang gửi lại lần ' + (lan + 1) + '…<br><small>Đừng tắt màn hình</small></div>';
+        await sleep(2000);
+      }
+    }
+    try { navigator.vibrate && navigator.vibrate([120, 60, 120]); } catch(e){}
+    $('#cCount').textContent = '';
     const msg = k.loai === 'vao'
       ? `${k.ten} đã VÀO CA lúc ${k.gio}` + (k.muon > 0 ? ` (trễ ${k.muon} phút)` : '') + (k.tinhTu ? ` · công tính từ ${k.tinhTu} (giờ bắt đầu ca)` : '') + (k.ketThuc ? ` · ca kết thúc ${k.ketThuc}` : '')
-      : `${k.ten} đã RA CA lúc ${k.gio} — làm ${k.soGio} giờ`;
+      : `✅ ${k.ten} đã RA CA lúc ${k.gio} — làm ${k.soGio} giờ`;
     ketThuc(`<div class="okbox">${esc(msg)}</div>` + (k.canhBao ? `<div class="errbox" style="font-weight:500">${esc(k.canhBao)}</div>` : ''));
-  } catch(e){ camState('err'); ketThuc(`<div class="errbox">${esc(e.message)}</div>`); }
+  } catch(e){ $('#cCount').textContent = ''; camState('err'); ketThuc(`<div class="errbox">CHƯA LƯU ĐƯỢC: ${esc(e.message)}<br>Hãy bấm Quét lại.</div>`); }
   $('#btnKhong').classList.remove('hidden');
 }
 
