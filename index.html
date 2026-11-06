@@ -49,6 +49,23 @@
   .badge.ok{background:var(--xanh-nhat);color:var(--xanh)} .badge.bad{background:var(--do-nhat);color:var(--do)}
   .okbox,.errbox{padding:12px;border-radius:10px;margin-top:12px;font-weight:600;text-align:center}
   .okbox{background:var(--xanh-nhat);color:var(--xanh)}
+  .dkBang{width:100%;border-collapse:collapse}
+  .dkBang td{padding:4px 0;vertical-align:middle;border-bottom:1px solid var(--vien)}
+  .dkBang td:first-child{width:78px;font-weight:700;font-size:14px;line-height:1.2}
+  .dkBang td:first-child span{display:block;font-weight:400;color:var(--phu, #7a6a5c);font-size:12px}
+  .dkBang input{margin:0}
+  #inVung{display:none}
+  @media print{
+    body > *:not(#inVung){display:none !important}
+    html,body{background:#fff !important}
+    #inVung{display:block;font-family:Arial,sans-serif;color:#000}
+    #inVung th{color:#000;background:#eee}
+    #inVung .trang{page-break-after:always;padding:8mm}
+    #inVung .trang:last-child{page-break-after:auto}
+    #inVung table{width:100%;border-collapse:collapse;font-size:14px}
+    #inVung th,#inVung td{border:1px solid #000;padding:6px 8px;text-align:left;vertical-align:top}
+    #inVung h2{margin:0 0 4px;font-size:18px}
+  }
   .dangluu{background:#fff4d6;color:#7a4b00;border:2px solid #f0b429;border-radius:10px;padding:10px;font-weight:800;font-size:17px;line-height:1.35}
   .dangluu small{font-weight:600;font-size:13px} .errbox{background:var(--do-nhat);color:var(--do)}
 
@@ -158,17 +175,13 @@
     <div class="card hidden" id="cardTB" style="border-color:#e0b98a;background:#fffaf2"><h3>🔔 Thông báo mới</h3><div id="dsTB"></div></div>
 
     <div class="card">
-      <h3>Đăng ký ca</h3>
-      <p class="muted">Ghi nguyện vọng tối đa 3 khung giờ trong ngày. Chủ quán sẽ sắp xếp và báo lại.</p>
-      <label for="ngayCa">Ngày</label>
-      <input type="date" id="ngayCa">
-      <div class="two" style="margin-top:6px"><div><label>Bắt đầu 1</label><input type="time" id="bd1"></div><div><label>Kết thúc 1</label><input type="time" id="kt1"></div></div>
-      <div class="two"><div><label>Bắt đầu 2</label><input type="time" id="bd2"></div><div><label>Kết thúc 2</label><input type="time" id="kt2"></div></div>
-      <div class="two"><div><label>Bắt đầu 3</label><input type="time" id="bd3"></div><div><label>Kết thúc 3</label><input type="time" id="kt3"></div></div>
-      <label for="gcCa">Ghi chú (không bắt buộc)</label>
-      <input id="gcCa" maxlength="200" placeholder="VD: em làm được cả ngày thứ 7">
-      <button class="btn" id="btnDK">Gửi đăng ký</button>
-      <div id="dsDK"></div>
+      <h3>Đăng ký ca theo tuần</h3>
+      <p class="muted">Ghi chú cho từng ngày: rảnh giờ nào, muốn làm ca nào, ngày nào bận… Chủ quán xem để xếp Roster. Gửi lại được để sửa.</p>
+      <label for="dkTuan">Tuần</label>
+      <select id="dkTuan"></select>
+      <table class="dkBang" style="margin-top:8px"><tbody id="dkBang"></tbody></table>
+      <button class="btn" id="btnDK">Gửi đăng ký tuần</button>
+      <p class="muted" id="dkLuc" style="margin-top:6px"></p>
     </div>
 
     <div class="card">
@@ -192,12 +205,17 @@
         <div><label for="loaiDon">Loại đơn</label><select id="loaiDon"><option>Xin nghỉ</option><option>Đổi ca</option><option>Cắt ca</option><option>Lắp ca</option></select></div>
         <div><label for="ngayDon">Ngày</label><input type="date" id="ngayDon"></div>
       </div>
-      <div id="khungDoi" class="hidden"><label for="doiVoi" id="lblDoi">Đổi ca với</label><select id="doiVoi"></select></div>
+      <div id="khungDoi" class="hidden">
+        <div id="khungNguoi"><label for="doiVoi">Đổi ca với</label><select id="doiVoi"></select></div>
+        <div id="khungCaToi"><label for="caToiSel">Ca của tôi</label><select id="caToiSel"></select></div>
+        <label for="caHoSel" id="lblCaHo">Ca của người kia</label><select id="caHoSel"></select>
+        <p class="muted" id="caNgayTB"></p>
+      </div>
       <div id="khungCat" class="hidden">
         <label for="catCa">Ca muốn cắt</label><select id="catCa"></select>
         <div class="two">
-          <div><label for="catKieu">Cắt</label><select id="catKieu"><option value="tre">Lên trễ</option><option value="som">Về sớm</option></select></div>
-          <div><label for="catGio">Số giờ cắt</label><select id="catGio"></select></div>
+          <div><label for="catKieu">Cắt</label><select id="catKieu"><option value="nguyen">Cắt nguyên ca</option><option value="tre">Cắt đi trễ</option><option value="som">Cắt về sớm</option></select></div>
+          <div id="khungCatGio"><label for="catGio">Số giờ cắt</label><select id="catGio"></select></div>
         </div>
         <p class="muted" id="catXem"></p>
       </div>
@@ -235,6 +253,11 @@
       </div>
       <div class="card hidden" id="cardVang" style="border-color:#e0a3a3"><h3>Vắng mặt chờ xử lý</h3><p class="muted">Quá 2 tiếng sau giờ vào ca mà chưa chấm công, không có đơn nghỉ. Hỏi nhân viên rồi chọn: lỗi chấm công (nhập giờ) hoặc bỏ ca.</p><div id="qlVang"></div></div>
       <div class="card" id="cardTC"><h3>Tăng ca chờ duyệt</h3><div id="qlTC"></div></div>
+      <div class="card" id="cardDKT">
+        <div class="row" style="padding-top:0"><h3 style="margin:0">Đăng ký ca theo tuần</h3><button class="sm" onclick="inDK()">🖨 In tất cả</button></div>
+        <select id="qlDKTuan"></select>
+        <div id="qlDKT"></div>
+      </div>
 
       <div class="card">
         <h3>WiFi của quán</h3>
@@ -701,8 +724,6 @@ async function login(){
 function logout(){ S.ma = S.pin = S.ten = ''; showTab(S.tab); }
 
 async function loadCa(){
-  if (!$('#ngayCa').value) $('#ngayCa').value = today();
-  $('#ngayCa').min = today();
   if (!$('#ngayTre').value) $('#ngayTre').value = today();
   if (!$('#ngayDon').value) $('#ngayDon').value = today();
   $('#ngayDon').min = today();
@@ -731,13 +752,19 @@ function renderCa(d){
     $('#cardTB').classList.remove('hidden');
   } else if (d.thongBao) $('#cardTB').classList.add('hidden');
   if (d.cuaToi){ S.cuaToi = d.cuaToi; if ($('#loaiDon').value === 'Cắt ca') veCatCa(); }
+  if (d.dkTuan){
+    const chon = $('#dkTuan').value;
+    S.dkTuan = d.dkTuan;
+    $('#dkTuan').innerHTML = d.dkTuan.map((t, i) => `<option value="${t.tuan}">${i === 0 ? 'Tuần tới' : 'Tuần sau nữa'}: ${ddmm(t.tuan)} – ${ddmm(congNgay(t.tuan, 6))}</option>`).join('');
+    if (chon && d.dkTuan.some(t => t.tuan === chon)) $('#dkTuan').value = chon;
+    veDKTuan();
+  }
   if (d.dongNghiep) $('#doiVoi').innerHTML = d.dongNghiep.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
   const tg = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
   const dongDon = x => `<div class="row"><div><b>${x.loai === 'Đăng ký ca' ? ngayVN(x.ngay) : esc(x.loai) + ' · ' + ngayVN(x.ngay)}</b>${x.doiVoi && x.loai !== 'Cắt ca' ? ' · với ' + esc(x.doiVoi) : ''}<br>
       <span class="tag ${tg(x.trangThai)}">${esc(x.loai === 'Đăng ký ca' && x.trangThai === 'Đồng ý' ? 'Đã ghi nhận' : x.trangThai)}</span> <span class="muted">${esc(x.noiDung)}</span></div>
       ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyDon('${esc(x.id)}')">Hủy</button>` : ''}</div>`;
   const dk = (d.don || []).filter(x => x.loai === 'Đăng ký ca'), khac = (d.don || []).filter(x => x.loai !== 'Đăng ký ca');
-  $('#dsDK').innerHTML = dk.length ? '<div style="margin-top:12px">' + dk.map(dongDon).join('') + '</div>' : '';
   $('#dsDon').innerHTML = khac.length ? '<div style="margin-top:12px">' + khac.map(dongDon).join('') + '</div>' : '';
   const tag = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
   $('#dsXinTre').innerHTML = (d.xinTre || []).length ? '<div style="margin-top:12px">' + d.xinTre.map(x => `<div class="row"><div><b>${ngayVN(x.ngay)}</b> · trễ ${x.phut} phút<br>
@@ -747,12 +774,20 @@ function renderCa(d){
 async function guiDon(){
   const loai = $('#loaiDon').value;
   let khung = null;
+  let maDoi = $('#doiVoi').value;
+  if (loai === 'Đổi ca' || loai === 'Lắp ca'){
+    if (/Đang tải/.test($('#caHoSel').textContent)) return toast('Đang tải ca, thử lại sau 1 giây', true);
+    if (loai === 'Đổi ca' && !$('#caToiSel').value) return toast('Ngày này bạn không có ca để đổi', true);
+    if (!$('#caHoSel').value) return toast(loai === 'Lắp ca' ? 'Ngày này không có ca nào để lắp' : 'Người này không có ca ngày đó', true);
+    if (loai === 'Lắp ca'){ const v = $('#caHoSel').value.split('|'); maDoi = v[0]; khung = { caToi: '', caHo: v[1] }; }
+    else khung = { caToi: $('#caToiSel').value, caHo: $('#caHoSel').value };
+  }
   if (loai === 'Cắt ca'){
     const c = (S.cuaToi || []).find(x => x.id === $('#catCa').value);
     if (!c) return toast('Ngày này bạn không có ca nào để cắt', true);
-    khung = { bd: c.batDau, kt: c.ketThuc, kieu: $('#catKieu').value, phut: Math.round(Number($('#catGio').value) * 60) };
+    khung = { bd: c.batDau, kt: c.ketThuc, kieu: $('#catKieu').value, phut: Math.round(Number($('#catGio').value || 0) * 60) };
   }
-  renderCa(await call('guiDon', S.ma, S.pin, loai, $('#ngayDon').value, $('#doiVoi').value, $('#noiDungDon').value, khung));
+  renderCa(await call('guiDon', S.ma, S.pin, loai, $('#ngayDon').value, maDoi, $('#noiDungDon').value, khung));
   $('#noiDungDon').value = ''; toast('Đã gửi đơn, chờ chủ quán duyệt');
 }
 async function huyDon(id){
@@ -763,11 +798,34 @@ function doiLoaiDon(){
   const loai = $('#loaiDon').value, doi = loai === 'Đổi ca', lap = loai === 'Lắp ca', cat = loai === 'Cắt ca';
   $('#khungDoi').classList.toggle('hidden', !(doi || lap));
   $('#khungCat').classList.toggle('hidden', !cat);
-  $('#lblDoi').textContent = lap ? 'Làm thay cho (người vắng)' : 'Đổi ca với';
-  $('#lblDon').textContent = doi ? 'Nội dung đổi ca' : lap ? 'Ghi chú (không bắt buộc)' : 'Lý do';
-  $('#noiDungDon').placeholder = doi ? 'VD: em làm ca chiều thay bạn, bạn làm ca sáng thay em'
+  $('#lblDon').textContent = doi || lap ? 'Ghi chú (không bắt buộc)' : 'Lý do';
+  $('#noiDungDon').placeholder = doi ? 'VD: em bận việc buổi tối'
     : lap ? 'VD: bạn ấy bị ốm, em làm thay cả ngày' : cat ? 'VD: em đi học đến 8h' : 'VD: về quê có việc gia đình';
   if (cat) veCatCa();
+  if (doi || lap) taiCaNgay();
+}
+// Lấy ca của tôi và của người kia trong ngày đã chọn để chọn "Ca muốn đổi / Ca muốn lắp"
+async function taiCaNgay(){
+  const lap = $('#loaiDon').value === 'Lắp ca', ngay = $('#ngayDon').value, ma = lap ? '' : $('#doiVoi').value;
+  $('#khungNguoi').classList.toggle('hidden', lap);
+  $('#khungCaToi').classList.toggle('hidden', lap);
+  const ten = ($('#doiVoi').selectedOptions[0] || {}).textContent || 'người kia';
+  $('#lblCaHo').textContent = lap ? 'Ca muốn lắp' : 'Ca của ' + ten;
+  const op = ds => ds.map(c => `<option value="${c.batDau}-${c.ketThuc}">${c.batDau}–${c.ketThuc}</option>`).join('');
+  $('#caToiSel').innerHTML = $('#caHoSel').innerHTML = '<option value="">Đang tải…</option>'; $('#caNgayTB').textContent = '';
+  if (!ngay || (!lap && !ma)) return;
+  try {
+    const d = await call('caNgay', S.ma, S.pin, ngay, ma);
+    if ($('#ngayDon').value !== ngay || (!lap && $('#doiVoi').value !== ma)) return;
+    if (lap){
+      const ds = d.khac || [];
+      $('#caHoSel').innerHTML = ds.length ? ds.map(c => `<option value="${esc(c.ma)}|${c.batDau}-${c.ketThuc}">${c.batDau}–${c.ketThuc} · ${esc(c.ten)}${c.daNghi ? ' (đã xin nghỉ)' : ''}</option>`).join('')
+        : '<option value="">Ngày này không có ca nào để lắp</option>';
+      return;
+    }
+    $('#caToiSel').innerHTML = op(d.cuaToi) || '<option value="">Ngày này bạn không có ca</option>';
+    $('#caHoSel').innerHTML = op(d.cuaHo) || `<option value="">${esc(ten)} không có ca ngày này</option>`;
+  } catch(e){ $('#caNgayTB').textContent = e.message; }
 }
 // Cắt ca: liệt kê ca của tôi trong ngày đã chọn, số giờ cắt theo bậc 30 phút (ít hơn độ dài ca)
 function veCatCa(){
@@ -782,13 +840,16 @@ function veGioCat(){
   const p = t => +t.slice(0, 2) * 60 + +t.slice(3);
   let dai = 0; if (c){ dai = p(c.ketThuc) - p(c.batDau); if (dai <= 0) dai += 1440; }
   const cu = $('#catGio').value, opt = [];
-  for (let m = 30; m < dai; m += 30) opt.push(`<option value="${m / 60}">${m / 60 >= 1 ? Math.floor(m / 60) + ' giờ' : ''}${m % 60 ? ' 30 phút' : ''}</option>`);
+  for (let m = 30; m < dai && m <= 480; m += 30) opt.push(`<option value="${m / 60}">${m / 60 >= 1 ? Math.floor(m / 60) + ' giờ' : ''}${m % 60 ? ' 30 phút' : ''}</option>`);
   $('#catGio').innerHTML = opt.join('');
-  if (cu && opt.some(o => o.indexOf(`value="${cu}"`) >= 0)) $('#catGio').value = cu;
+  if (cu && Number(cu) * 60 < dai) $('#catGio').value = cu;
   xemCat();
 }
 function xemCat(){
   const c = (S.cuaToi || []).find(x => x.id === $('#catCa').value);
+  const nguyen = $('#catKieu').value === 'nguyen';
+  $('#khungCatGio').style.visibility = nguyen ? 'hidden' : '';
+  if (c && nguyen){ $('#catXem').innerHTML = `Bỏ hẳn ca <b>${c.batDau}–${c.ketThuc}</b>. Được duyệt thì Roster xóa ca này (không còn ca nào thì ghi OFF).`; return; }
   if (!c || !$('#catGio').value){ $('#catXem').textContent = ''; return; }
   const p = t => +t.slice(0, 2) * 60 + +t.slice(3), g = m => { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
   const a = p(c.batDau); let b = p(c.ketThuc); if (b <= a) b += 1440;
@@ -804,12 +865,21 @@ async function huyTre(id){
   if (!await modal('Hủy đơn xin trễ?', '<p class="muted">Đơn chưa duyệt sẽ bị xóa.</p>', 'Hủy đơn')) return;
   try { renderCa(await call('huyXinTre', S.ma, S.pin, id)); toast('Đã hủy'); } catch(e){ toast(e.message, true); }
 }
+const THU = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+function congNgay(iso, n){ const p = iso.split('-'); const d = new Date(+p[0], p[1] - 1, +p[2] + n); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function ddmm(iso){ const p = iso.split('-'); return p[2] + '/' + p[1]; }
+function veDKTuan(){
+  const t = (S.dkTuan || []).find(x => x.tuan === $('#dkTuan').value) || (S.dkTuan || [])[0];
+  if (!t) return;
+  $('#dkBang').innerHTML = THU.map((th, i) => `<tr><td>${th}<span>${ddmm(congNgay(t.tuan, i))}</span></td>
+    <td><input class="dkGhi" data-i="${i}" maxlength="200" value="${esc(t.ghi[i] || '')}" placeholder="${i === 6 ? 'VD: nghỉ' : i === 0 ? 'VD: rảnh cả ngày' : 'VD: chỉ làm ca tối'}"></td></tr>`).join('');
+  $('#dkLuc').textContent = t.luc ? 'Đã gửi lúc ' + t.luc + '. Sửa rồi bấm gửi lại để cập nhật.' : 'Chưa gửi đăng ký cho tuần này.';
+}
 async function dangKy(){
-  const khung = [1, 2, 3].map(i => [$('#bd' + i).value, $('#kt' + i).value]).filter(k => k[0] || k[1]);
-  if (!khung.length) return toast('Hãy nhập ít nhất một khung giờ', true);
-  renderCa(await call('guiDon', S.ma, S.pin, 'Đăng ký ca', $('#ngayCa').value, '', $('#gcCa').value, khung));
-  [1, 2, 3].forEach(i => { $('#bd' + i).value = ''; $('#kt' + i).value = ''; });
-  $('#gcCa').value = ''; toast('Đã gửi nguyện vọng, chờ chủ quán sắp xếp');
+  const ghi = [...document.querySelectorAll('.dkGhi')].map(x => x.value.trim());
+  if (!ghi.some(x => x)) return toast('Hãy ghi ít nhất một ngày', true);
+  renderCa(await call('dangKyTuan', S.ma, S.pin, $('#dkTuan').value, ghi));
+  toast('Đã gửi đăng ký tuần');
 }
 async function huyCa(id){
   if (!await modal('Hủy ca này?', '<p class="muted">Ca chưa được duyệt sẽ bị xóa.</p>', 'Hủy ca')) return;
@@ -910,6 +980,7 @@ function renderQL(d){
   $('#cardVang').classList.toggle('hidden', !vc.length);
   $('#qlVang').innerHTML = vc.map(x => `<div class="row"><div><b>${esc(x.ten)}</b><br><span class="muted">${ngayVN(x.ngay)} · ca ${esc(x.ca)}</span><br><span class="late">Chưa chấm vào ca</span></div>
       <div class="acts"><button class="sm ok" onclick="xuLyVang('${esc(x.id)}','loi')">Lỗi chấm công</button><button class="sm" onclick="xuLyVang('${esc(x.id)}','phat')">Bỏ ca – biên bản</button><button class="sm ghost" onclick="xuLyVang('${esc(x.id)}','khong')">Bỏ ca – không phạt</button></div></div>`).join('');
+  if (d.dkTuan) veQLDK(Object.assign({}, d.dkTuan, { ds: d.dkTuan.ds.filter(hopBP) }));
   const mc = d.matCho || [];
   $('#cardMat').classList.toggle('hidden', !mc.length);
   $('#qlMatCho').innerHTML = mc.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> · ${esc(x.luc)}<br><span class="muted">${esc(x.loi)}</span><br>
@@ -1021,6 +1092,32 @@ async function chotRa(id){
 async function duyetMat(id, dongY){
   try { const d = await call('adminDuyetMat', S.adminPin, id, dongY, S.ip); renderQL(d); toast(d.thongBao || (dongY ? 'Đã đồng ý' : 'Đã từ chối')); } catch(e){ toast(e.message, true); }
 }
+function veQLDK(k){
+  S.qlDK = k;
+  $('#qlDKTuan').innerHTML = k.tuans.map((t, i) => `<option value="${t}"${t === k.tuan ? ' selected' : ''}>${['Tuần này', 'Tuần tới', 'Tuần sau nữa'][i]}: ${ddmm(t)} – ${ddmm(congNgay(t, 6))}</option>`).join('');
+  const co = k.ds.filter(x => x.ghi), chua = k.ds.filter(x => !x.ghi);
+  $('#qlDKT').innerHTML = (co.length ? co.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> <span class="muted">· ${esc(x.boPhan || '')} · gửi ${esc(x.luc)}</span><br>
+      <span class="muted" style="font-size:13px">${x.ghi.map((g, i) => g ? `<b>${THU[i].replace('Thứ ', 'T').replace('Chủ nhật', 'CN')}</b>: ${esc(g)}` : '').filter(Boolean).join(' · ')}</span></div>
+      <div class="acts"><button class="sm ghost" onclick="inDK('${esc(x.ma)}')">🖨 In</button></div></div>`).join('') : '<p class="muted">Chưa có ai đăng ký tuần này.</p>') +
+    (chua.length ? `<p class="muted" style="margin-top:8px">Chưa đăng ký (${chua.length}): ${chua.map(x => esc(x.ten)).join(', ')}</p>` : '');
+}
+async function doiTuanQL(){
+  try { const k = await call('adminDangKyTuan', S.adminPin, $('#qlDKTuan').value); S.ql.dkTuan = k; veQLDK(Object.assign({}, k, { ds: k.ds.filter(hopBP) })); }
+  catch(e){ toast(e.message, true); }
+}
+// In phiếu đăng ký ca: một người (ma) hoặc tất cả người đã đăng ký (đang lọc bộ phận thì chỉ bộ phận đó)
+function inDK(ma){
+  const k = S.qlDK; if (!k) return;
+  const ds = k.ds.filter(x => x.ghi && (!ma || x.ma === ma));
+  if (!ds.length) return toast('Chưa có đăng ký để in', true);
+  const tuan = ddmm(k.tuan) + ' – ' + ddmm(congNgay(k.tuan, 6)) + '/' + k.tuan.slice(0, 4);
+  $('#inVung').innerHTML = ds.map(x => `<div class="trang"><h2>PHIẾU ĐĂNG KÝ CA – TUẦN ${tuan}</h2>
+    <p><b>Nhân viên:</b> ${esc(x.ten)} &nbsp; <b>Bộ phận:</b> ${esc(x.boPhan || '')} &nbsp; <b>Gửi lúc:</b> ${esc(x.luc)}</p>
+    <table><thead><tr><th style="width:110px">Ngày</th><th>Ghi chú của nhân viên</th><th style="width:150px">Ca được xếp</th></tr></thead><tbody>
+    ${THU.map((th, i) => `<tr><td><b>${th}</b><br>${ddmm(congNgay(k.tuan, i))}</td><td>${esc(x.ghi[i] || '')}</td><td></td></tr>`).join('')}</tbody></table>
+    <p style="margin-top:24px">Người xếp ca: ............................................</p></div>`).join('');
+  window.print();
+}
 async function xuLyVang(id, chon){
   const x = (S.ql.vangCho || []).find(v => v.id === id); if (!x) return;
   let vao = '', ra = '', tien = 0, nd = '';
@@ -1129,10 +1226,12 @@ async function init(){
   $('#pin').onkeydown = e => { if (e.key === 'Enter') $('#btnLogin').click(); };
   $('#btnLogout').onclick = logout;
   $('#btnDK').onclick = e => lock(e.currentTarget, dangKy);
+  $('#dkTuan').onchange = veDKTuan;
   $('#btnXinTre').onclick = e => lock(e.currentTarget, guiXinTre);
   $('#btnGuiDon').onclick = e => lock(e.currentTarget, guiDon);
   $('#loaiDon').onchange = doiLoaiDon;
-  $('#ngayDon').addEventListener('change', () => { if ($('#loaiDon').value === 'Cắt ca') veCatCa(); });
+  $('#ngayDon').addEventListener('change', () => { const l = $('#loaiDon').value; if (l === 'Cắt ca') veCatCa(); if (l === 'Đổi ca' || l === 'Lắp ca') taiCaNgay(); });
+  $('#doiVoi').addEventListener('change', taiCaNgay);
   $('#catCa').onchange = veGioCat; $('#catKieu').onchange = xemCat; $('#catGio').onchange = xemCat;
   $('#thang').onchange = loadCong;
   $('#btnQL').onclick = e => lock(e.currentTarget, qlLogin);
@@ -1143,6 +1242,7 @@ async function init(){
   $('#btnThemCa').onclick = () => caForm('');
   $('#thangQL').onchange = loadLuong;
   $('#qlBP').onchange = () => { S.bp = $('#qlBP').value; renderQL(S.ql); veLuong(); };
+  $('#qlDKTuan').onchange = doiTuanQL;
   $('#btnXuat').onclick = e => lock(e.currentTarget, xuatLuong);
   $('#btnKhauTru').onclick = themKhauTru;
   $('#btnDoiPin').onclick = doiPin;
@@ -1209,5 +1309,6 @@ function ganApp(){
 }
 init();
 </script>
+<div id="inVung"></div>
 </body>
 </html>
