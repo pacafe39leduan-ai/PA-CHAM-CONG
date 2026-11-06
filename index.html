@@ -187,12 +187,20 @@
     </div>
 
     <div class="card">
-      <h3>Xin nghỉ / Đổi ca</h3>
+      <h3>Xin nghỉ / Đổi ca / Cắt ca / Lắp ca</h3>
       <div class="two">
-        <div><label for="loaiDon">Loại đơn</label><select id="loaiDon"><option>Xin nghỉ</option><option>Đổi ca</option></select></div>
+        <div><label for="loaiDon">Loại đơn</label><select id="loaiDon"><option>Xin nghỉ</option><option>Đổi ca</option><option>Cắt ca</option><option>Lắp ca</option></select></div>
         <div><label for="ngayDon">Ngày</label><input type="date" id="ngayDon"></div>
       </div>
-      <div id="khungDoi" class="hidden"><label for="doiVoi">Đổi ca với</label><select id="doiVoi"></select></div>
+      <div id="khungDoi" class="hidden"><label for="doiVoi" id="lblDoi">Đổi ca với</label><select id="doiVoi"></select></div>
+      <div id="khungCat" class="hidden">
+        <label for="catCa">Ca muốn cắt</label><select id="catCa"></select>
+        <div class="two">
+          <div><label for="catKieu">Cắt</label><select id="catKieu"><option value="tre">Lên trễ</option><option value="som">Về sớm</option></select></div>
+          <div><label for="catGio">Số giờ cắt</label><select id="catGio"></select></div>
+        </div>
+        <p class="muted" id="catXem"></p>
+      </div>
       <label for="noiDungDon" id="lblDon">Lý do</label>
       <input id="noiDungDon" maxlength="300" placeholder="VD: về quê có việc gia đình">
       <button class="btn" id="btnGuiDon">Gửi đơn</button>
@@ -221,6 +229,11 @@
     </div>
 
     <div id="qlPanel" class="hidden">
+      <div class="card" id="cardBP" style="position:sticky;top:0;z-index:5;padding:10px 14px">
+        <label for="qlBP" style="margin-top:0">Xem theo bộ phận</label>
+        <select id="qlBP"><option value="">Tất cả bộ phận</option></select>
+      </div>
+      <div class="card hidden" id="cardVang" style="border-color:#e0a3a3"><h3>Vắng mặt chờ xử lý</h3><p class="muted">Quá 2 tiếng sau giờ vào ca mà chưa chấm công, không có đơn nghỉ. Hỏi nhân viên rồi chọn: lỗi chấm công (nhập giờ) hoặc bỏ ca.</p><div id="qlVang"></div></div>
       <div class="card" id="cardTC"><h3>Tăng ca chờ duyệt</h3><div id="qlTC"></div></div>
 
       <div class="card">
@@ -249,7 +262,7 @@
 
       <div class="card"><h3>Xin đến trễ chờ duyệt</h3><div id="qlTre"></div></div>
 
-      <div class="card"><h3>Đơn chờ duyệt: đăng ký ca, xin nghỉ, đổi ca</h3><p class="muted">Đồng ý xin nghỉ / đổi ca thì trang Roster tự cập nhật. Đăng ký ca là nguyện vọng: đồng ý = đã ghi nhận, bạn tự xếp vào Roster.</p><div id="qlDon"></div></div>
+      <div class="card"><h3>Đơn chờ duyệt: đăng ký ca, xin nghỉ, đổi ca, cắt ca, lắp ca</h3><p class="muted">Đồng ý xin nghỉ / đổi ca / cắt ca / lắp ca thì trang Roster tự cập nhật. Đăng ký ca là nguyện vọng: đồng ý = đã ghi nhận, bạn tự xếp vào Roster.</p><div id="qlDon"></div></div>
 
       <div class="card">
         <div class="row" style="padding-top:0"><h3 style="margin:0">Ca chờ duyệt</h3><button class="sm ok" id="btnDuyetHet">Duyệt tất cả</button></div>
@@ -717,9 +730,10 @@ function renderCa(d){
     $('#dsTB').innerHTML = d.thongBao.map(t => `<div class="row"><span><span class="tag ${t.ok ? 'ok' : 'bad'}">${t.ok ? '✓' : '✗'}</span> ${esc(t.text)}</span></div>`).join('');
     $('#cardTB').classList.remove('hidden');
   } else if (d.thongBao) $('#cardTB').classList.add('hidden');
+  if (d.cuaToi){ S.cuaToi = d.cuaToi; if ($('#loaiDon').value === 'Cắt ca') veCatCa(); }
   if (d.dongNghiep) $('#doiVoi').innerHTML = d.dongNghiep.map(n => `<option value="${esc(n.ma)}">${esc(n.ten)}</option>`).join('');
   const tg = t => t === 'Đồng ý' ? 'ok' : t === 'Từ chối' ? 'bad' : 'wait';
-  const dongDon = x => `<div class="row"><div><b>${x.loai === 'Đăng ký ca' ? ngayVN(x.ngay) : esc(x.loai) + ' · ' + ngayVN(x.ngay)}</b>${x.doiVoi ? ' · với ' + esc(x.doiVoi) : ''}<br>
+  const dongDon = x => `<div class="row"><div><b>${x.loai === 'Đăng ký ca' ? ngayVN(x.ngay) : esc(x.loai) + ' · ' + ngayVN(x.ngay)}</b>${x.doiVoi && x.loai !== 'Cắt ca' ? ' · với ' + esc(x.doiVoi) : ''}<br>
       <span class="tag ${tg(x.trangThai)}">${esc(x.loai === 'Đăng ký ca' && x.trangThai === 'Đồng ý' ? 'Đã ghi nhận' : x.trangThai)}</span> <span class="muted">${esc(x.noiDung)}</span></div>
       ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyDon('${esc(x.id)}')">Hủy</button>` : ''}</div>`;
   const dk = (d.don || []).filter(x => x.loai === 'Đăng ký ca'), khac = (d.don || []).filter(x => x.loai !== 'Đăng ký ca');
@@ -731,7 +745,14 @@ function renderCa(d){
       ${x.trangThai === 'Chờ duyệt' ? `<button class="sm ghost" onclick="huyTre('${esc(x.id)}')">Hủy</button>` : ''}</div>`).join('') + '</div>' : '';
 }
 async function guiDon(){
-  renderCa(await call('guiDon', S.ma, S.pin, $('#loaiDon').value, $('#ngayDon').value, $('#doiVoi').value, $('#noiDungDon').value));
+  const loai = $('#loaiDon').value;
+  let khung = null;
+  if (loai === 'Cắt ca'){
+    const c = (S.cuaToi || []).find(x => x.id === $('#catCa').value);
+    if (!c) return toast('Ngày này bạn không có ca nào để cắt', true);
+    khung = { bd: c.batDau, kt: c.ketThuc, kieu: $('#catKieu').value, phut: Math.round(Number($('#catGio').value) * 60) };
+  }
+  renderCa(await call('guiDon', S.ma, S.pin, loai, $('#ngayDon').value, $('#doiVoi').value, $('#noiDungDon').value, khung));
   $('#noiDungDon').value = ''; toast('Đã gửi đơn, chờ chủ quán duyệt');
 }
 async function huyDon(id){
@@ -739,10 +760,41 @@ async function huyDon(id){
   try { renderCa(await call('huyDon', S.ma, S.pin, id)); toast('Đã hủy'); } catch(e){ toast(e.message, true); }
 }
 function doiLoaiDon(){
-  const doi = $('#loaiDon').value === 'Đổi ca';
-  $('#khungDoi').classList.toggle('hidden', !doi);
-  $('#lblDon').textContent = doi ? 'Nội dung đổi ca' : 'Lý do';
-  $('#noiDungDon').placeholder = doi ? 'VD: em làm ca chiều thay bạn, bạn làm ca sáng thay em' : 'VD: về quê có việc gia đình';
+  const loai = $('#loaiDon').value, doi = loai === 'Đổi ca', lap = loai === 'Lắp ca', cat = loai === 'Cắt ca';
+  $('#khungDoi').classList.toggle('hidden', !(doi || lap));
+  $('#khungCat').classList.toggle('hidden', !cat);
+  $('#lblDoi').textContent = lap ? 'Làm thay cho (người vắng)' : 'Đổi ca với';
+  $('#lblDon').textContent = doi ? 'Nội dung đổi ca' : lap ? 'Ghi chú (không bắt buộc)' : 'Lý do';
+  $('#noiDungDon').placeholder = doi ? 'VD: em làm ca chiều thay bạn, bạn làm ca sáng thay em'
+    : lap ? 'VD: bạn ấy bị ốm, em làm thay cả ngày' : cat ? 'VD: em đi học đến 8h' : 'VD: về quê có việc gia đình';
+  if (cat) veCatCa();
+}
+// Cắt ca: liệt kê ca của tôi trong ngày đã chọn, số giờ cắt theo bậc 30 phút (ít hơn độ dài ca)
+function veCatCa(){
+  const ngay = $('#ngayDon').value;
+  const ds = (S.cuaToi || []).filter(c => c.ngay === ngay);
+  $('#catCa').innerHTML = ds.length ? ds.map(c => `<option value="${esc(c.id)}">${c.batDau}–${c.ketThuc}${c.quaDem ? ' (hôm sau)' : ''}</option>`).join('')
+    : '<option value="">Ngày này bạn không có ca</option>';
+  veGioCat();
+}
+function veGioCat(){
+  const c = (S.cuaToi || []).find(x => x.id === $('#catCa').value);
+  const p = t => +t.slice(0, 2) * 60 + +t.slice(3);
+  let dai = 0; if (c){ dai = p(c.ketThuc) - p(c.batDau); if (dai <= 0) dai += 1440; }
+  const cu = $('#catGio').value, opt = [];
+  for (let m = 30; m < dai; m += 30) opt.push(`<option value="${m / 60}">${m / 60 >= 1 ? Math.floor(m / 60) + ' giờ' : ''}${m % 60 ? ' 30 phút' : ''}</option>`);
+  $('#catGio').innerHTML = opt.join('');
+  if (cu && opt.some(o => o.indexOf(`value="${cu}"`) >= 0)) $('#catGio').value = cu;
+  xemCat();
+}
+function xemCat(){
+  const c = (S.cuaToi || []).find(x => x.id === $('#catCa').value);
+  if (!c || !$('#catGio').value){ $('#catXem').textContent = ''; return; }
+  const p = t => +t.slice(0, 2) * 60 + +t.slice(3), g = m => { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+  const a = p(c.batDau); let b = p(c.ketThuc); if (b <= a) b += 1440;
+  const cat = Math.round(Number($('#catGio').value) * 60);
+  const tre = $('#catKieu').value === 'tre';
+  $('#catXem').innerHTML = `Ca mới sẽ là <b>${g(tre ? a + cat : a)}–${g(tre ? b : b - cat)}</b>. Được duyệt thì công và đi trễ tính theo giờ ca mới.`;
 }
 async function guiXinTre(){
   renderCa(await call('xinTre', S.ma, S.pin, $('#ngayTre').value, $('#phutTre').value, $('#lyDoTre').value));
@@ -806,8 +858,20 @@ async function qlLogin(){
   $('#qlLogin').classList.add('hidden'); $('#qlPanel').classList.remove('hidden');
   renderQL(d); loadLuong();
 }
+// Lọc theo bộ phận (chọn ở đầu trang Quản lý): áp cho mọi danh sách có nhân viên
+function bpCua(ma){ const n = (S.ql && S.ql.nhanVien || []).find(x => x.ma === ma); return n ? n.boPhan : ''; }
+function hopBP(x){ return !S.bp || (x.boPhan || bpCua(x.ma)) === S.bp; }
 function renderQL(d){
   S.ql = d;
+  const dsBP = [...new Set((d.nhanVien || []).map(n => n.boPhan).filter(Boolean))].sort();
+  if (S.bp && dsBP.indexOf(S.bp) < 0) S.bp = '';
+  $('#qlBP').innerHTML = '<option value="">Tất cả bộ phận</option>' + dsBP.map(b => `<option${b === S.bp ? ' selected' : ''}>${esc(b)}</option>`).join('');
+  $('#cardBP').classList.toggle('hidden', dsBP.length < 2);
+  d = Object.assign({}, d, {
+    nhanVien: d.nhanVien.filter(hopBP), dangMo: d.dangMo.filter(hopBP), caCho: d.caCho.filter(hopBP), caDuyet: d.caDuyet.filter(hopBP),
+    tangCa: d.tangCa.filter(hopBP), viPham: d.viPham.filter(hopBP), vangCho: (d.vangCho || []).filter(hopBP),
+    donCho: (d.donCho || []).filter(hopBP), xinTreCho: d.xinTreCho.filter(hopBP), matCho: (d.matCho || []).filter(hopBP)
+  });
   $('#qlWifi').innerHTML = (d.wifi.length
       ? d.wifi.map(ip => `<div class="row"><span><code>${esc(ip)}</code> ${ip === d.ipHienTai ? '<span class="tag ok">bạn đang dùng</span>' : ''}</span><button class="sm ghost" onclick="wifi('xoa','${esc(ip)}')">Xóa</button></div>`).join('')
       : '<div class="errbox" style="margin-top:0">Chưa cài WiFi quán — nhân viên chưa chấm công được.</div>') +
@@ -825,7 +889,7 @@ function renderQL(d){
       <div class="acts"><button class="sm ok" onclick="duyet('${esc(c.id)}')">Duyệt</button><button class="sm ghost" onclick="caForm('${esc(c.id)}')">Sửa</button><button class="sm ghost" onclick="tuChoiCa('${esc(c.id)}')">Từ chối</button></div></div>`).join('')
     : '<p class="muted">Không có ca nào chờ duyệt.</p>';
   $('#qlDon').innerHTML = (d.donCho || []).length ? d.donCho.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> · <span class="tag wait">${esc(x.loai)}</span><br>
-      ${ngayVN(x.ngay)}${x.doiVoi ? ' · đổi với <b>' + esc(x.doiVoi) + '</b>' : ''}<br><span class="muted">${esc(x.noiDung)}</span></div>
+      ${ngayVN(x.ngay)}${x.doiVoi && x.loai === 'Đổi ca' ? ' · đổi với <b>' + esc(x.doiVoi) + '</b>' : x.doiVoi && x.loai === 'Lắp ca' ? ' · làm thay <b>' + esc(x.doiVoi) + '</b>' : ''}<br><span class="muted">${esc(x.noiDung)}</span></div>
       <div class="acts"><button class="sm ok" onclick="duyetDon('${esc(x.id)}',true)">Đồng ý</button><button class="sm ghost" onclick="duyetDon('${esc(x.id)}',false)">Từ chối</button></div></div>`).join('')
     : '<p class="muted">Không có đơn nào chờ duyệt.</p>';
   $('#btnDuyetHet').classList.toggle('hidden', d.caCho.length < 2);
@@ -837,11 +901,15 @@ function renderQL(d){
       <span class="muted">Vào ${esc(x.vao)} · ca kết thúc ${esc(x.ketThuc)} · ${x.ra ? 'bấm ra ' + esc(x.ra) : '<span class="late">chưa bấm ra</span>'}</span></div>
       <div class="acts">${x.buoc === 1
         ? `<button class="sm ok" onclick="tangCa('${esc(x.id)}','co')">Có (đến ${esc(x.ket30)})</button><button class="sm ghost" onclick="tangCa('${esc(x.id)}','khong')">Không (đến ${esc(x.ketThuc)})</button>`
-        : `<button class="sm ghost" onclick="tangCa('${esc(x.id)}','dung')">Ra đúng giờ ${esc(x.ketThuc)}</button><button class="sm ok" onclick="tangCa('${esc(x.id)}','1h')">Tăng ca 1 tiếng</button><button class="sm" onclick="tangCa('${esc(x.id)}','khac')">Tăng ca khác…</button>`}</div></div>`).join('');
+        : `<button class="sm ghost" onclick="tangCa('${esc(x.id)}','dung')">Ra đúng giờ ${esc(x.ketThuc)}</button><button class="sm ok" onclick="tangCa('${esc(x.id)}','1h')">Tăng ca 1 tiếng</button><button class="sm ok" onclick="tangCa('${esc(x.id)}','2h')">Tăng ca 2 tiếng</button><button class="sm" onclick="tangCa('${esc(x.id)}','khac')">Tăng ca khác…</button>`}</div></div>`).join('');
   $('#qlBB').innerHTML = d.viPham.length ? d.viPham.map(v => `<div class="row"><div><b>${esc(v.ten)}</b><br>
       <span class="muted">${esc(v.ngay)} vào ${esc(v.vao)} · trễ ${v.muon} phút</span><br><span class="late">Phạt ${money(v.phat)}</span></div>
       <div class="acts"><button class="sm" onclick="bienBan('${esc(v.id)}','Có')">Có</button><button class="sm ghost" onclick="bienBan('${esc(v.id)}','Không')">Không</button></div></div>`).join('')
     : '<p class="muted">Không có biên bản nào chờ quyết định.</p>';
+  const vc = d.vangCho || [];
+  $('#cardVang').classList.toggle('hidden', !vc.length);
+  $('#qlVang').innerHTML = vc.map(x => `<div class="row"><div><b>${esc(x.ten)}</b><br><span class="muted">${ngayVN(x.ngay)} · ca ${esc(x.ca)}</span><br><span class="late">Chưa chấm vào ca</span></div>
+      <div class="acts"><button class="sm ok" onclick="xuLyVang('${esc(x.id)}','loi')">Lỗi chấm công</button><button class="sm" onclick="xuLyVang('${esc(x.id)}','phat')">Bỏ ca – biên bản</button><button class="sm ghost" onclick="xuLyVang('${esc(x.id)}','khong')">Bỏ ca – không phạt</button></div></div>`).join('');
   const mc = d.matCho || [];
   $('#cardMat').classList.toggle('hidden', !mc.length);
   $('#qlMatCho').innerHTML = mc.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> · ${esc(x.luc)}<br><span class="muted">${esc(x.loi)}</span><br>
@@ -953,6 +1021,24 @@ async function chotRa(id){
 async function duyetMat(id, dongY){
   try { const d = await call('adminDuyetMat', S.adminPin, id, dongY, S.ip); renderQL(d); toast(d.thongBao || (dongY ? 'Đã đồng ý' : 'Đã từ chối')); } catch(e){ toast(e.message, true); }
 }
+async function xuLyVang(id, chon){
+  const x = (S.ql.vangCho || []).find(v => v.id === id); if (!x) return;
+  let vao = '', ra = '', tien = 0, nd = '';
+  if (chon === 'loi'){
+    if (!await modal('Lỗi chấm công – nhập giờ', `<p><b>${esc(x.ten)}</b> · ${ngayVN(x.ngay)} · ca ${esc(x.ca)}</p>
+      <div class="two"><div><label>Giờ vào</label><input type="time" id="fVgVao" value="${esc(x.ca.slice(0, 5))}"></div>
+      <div><label>Giờ ra (để trống nếu chưa ra)</label><input type="time" id="fVgRa"></div></div>`, 'Lưu công')) return;
+    vao = $('#fVgVao').value; ra = $('#fVgRa').value;
+    if (!vao) return toast('Nhập giờ vào', true);
+  } else if (chon === 'phat'){
+    if (!await modal('Lập biên bản bỏ ca', `<p><b>${esc(x.ten)}</b> · ${ngayVN(x.ngay)} · ca ${esc(x.ca)}</p>
+      <label>Số tiền phạt (đ)</label><input type="number" id="fVgTien" min="1000" step="1000" value="${x.phatMacDinh || 100000}">
+      <label>Nội dung (không bắt buộc)</label><input id="fVgNd" maxlength="300" placeholder="Bỏ ca không báo trước">`, 'Lập biên bản')) return;
+    tien = $('#fVgTien').value; nd = $('#fVgNd').value;
+  } else if (!await modal('Bỏ ca – không phạt?', `<p><b>${esc(x.ten)}</b> · ${ngayVN(x.ngay)} · ca ${esc(x.ca)}</p><p class="muted">Ghi nhận bỏ ca, không trừ tiền.</p>`, 'Xác nhận')) return;
+  try { const d = await call('adminXuLyVang', S.adminPin, id, chon, vao, ra, tien, nd, S.ip); renderQL(d); toast(d.thongBao || 'Đã lưu', false, 6000); loadLuong(); }
+  catch(e){ toast(e.message, true); }
+}
 async function duyetDon(id, dongY){
   try {
     const d = await call('adminDuyetDon', S.adminPin, id, dongY, S.ip); renderQL(d);
@@ -1005,18 +1091,26 @@ async function xoaKhauTru(id){
 async function loadLuong(){
   $('#luongBody').innerHTML = '<p class="muted">Đang tính…</p>'; $('#luongLink').innerHTML = '';
   try {
-    const ds = await call('adminBangLuong', S.adminPin, $('#thangQL').value);
-    if (!ds.length){ $('#luongBody').innerHTML = '<p class="muted">Chưa có công trong tháng này.</p>'; return; }
-    let g = 0, t = 0;
-    $('#luongBody').innerHTML = `<table><thead><tr><th>Nhân viên</th><th class="r">Giờ</th><th class="r">Tổng lương</th></tr></thead><tbody>` +
-      ds.map(m => { g += m.gio; t += m.tong; return `<tr><td><b>${esc(m.ten)}</b> <span class="muted">· ${m.soCa} ca</span><br><span class="muted" style="font-size:12px">${chiTietLuong(m)}</span>
-        ${m.lanMuon ? `<br><span class="late">Trễ ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.bienBanCho ? `<br><span class="tag wait">${m.bienBanCho} biên bản chờ quyết định</span>` : ''}${m.tangCaCho ? `<br><span class="tag wait">${m.tangCaCho} tăng ca chờ duyệt</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}${dsKhauTruHtml(m)}</td>
-        <td class="r">${m.gio}</td><td class="r"><b>${money(m.tong)}</b></td></tr>`; }).join('') +
-      `<tr><th>Tổng</th><th class="r">${Math.round(g*100)/100}</th><th class="r">${money(t)}</th></tr></tbody></table>`;
+    S.luong = await call('adminBangLuong', S.adminPin, $('#thangQL').value);
+    veLuong();
   } catch(e){ $('#luongBody').innerHTML = `<div class="errbox">${esc(e.message)}</div>`; }
 }
+function veLuong(){
+    const ds = (S.luong || []).filter(hopBP).sort((a, b) => String(a.boPhan).localeCompare(String(b.boPhan)) || a.ten.localeCompare(b.ten));
+    if (!ds.length){ $('#luongBody').innerHTML = '<p class="muted">Chưa có công trong tháng này' + (S.bp ? ' ở bộ phận ' + esc(S.bp) : '') + '.</p>'; return; }
+    let g = 0, t = 0, nhom = '', gN = 0, tN = 0;
+    const nhieuNhom = !S.bp && new Set(ds.map(m => m.boPhan)).size > 1;
+    const cong = () => nhieuNhom && nhom ? `<tr style="background:var(--nen)"><td class="muted"><b>Cộng ${esc(nhom)}</b></td><td class="r muted">${Math.round(gN*100)/100}</td><td class="r"><b>${money(tN)}</b></td></tr>` : '';
+    $('#luongBody').innerHTML = `<table><thead><tr><th>Nhân viên</th><th class="r">Giờ</th><th class="r">Tổng lương</th></tr></thead><tbody>` +
+      ds.map(m => { let dau = '';
+        if (nhieuNhom && m.boPhan !== nhom){ dau = cong() + `<tr><td colspan="3" style="padding-top:12px"><span class="tag">${esc(m.boPhan || 'Chưa xếp bộ phận')}</span></td></tr>`; nhom = m.boPhan; gN = 0; tN = 0; }
+        g += m.gio; t += m.tong; gN += m.gio; tN += m.tong; return dau + `<tr><td><b>${esc(m.ten)}</b> <span class="muted">· ${m.soCa} ca</span><br><span class="muted" style="font-size:12px">${chiTietLuong(m)}</span>
+        ${m.lanMuon ? `<br><span class="late">Trễ ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.bienBanCho ? `<br><span class="tag wait">${m.bienBanCho} biên bản chờ quyết định</span>` : ''}${m.tangCaCho ? `<br><span class="tag wait">${m.tangCaCho} tăng ca chờ duyệt</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}${dsKhauTruHtml(m)}</td>
+        <td class="r">${m.gio}</td><td class="r"><b>${money(m.tong)}</b></td></tr>`; }).join('') +
+      cong() + `<tr><th>Tổng${S.bp ? ' ' + esc(S.bp) : ''}</th><th class="r">${Math.round(g*100)/100}</th><th class="r">${money(t)}</th></tr></tbody></table>`;
+}
 async function xuatLuong(){
-  const url = await call('adminXuatLuong', S.adminPin, $('#thangQL').value);
+  const url = await call('adminXuatLuong', S.adminPin, $('#thangQL').value, S.bp || '');
   $('#luongLink').innerHTML = `<div class="okbox">Đã xuất. <a href="${esc(url)}" target="_blank" rel="noopener">Mở bảng lương</a></div>`;
 }
 async function doiPin(){
@@ -1038,6 +1132,8 @@ async function init(){
   $('#btnXinTre').onclick = e => lock(e.currentTarget, guiXinTre);
   $('#btnGuiDon').onclick = e => lock(e.currentTarget, guiDon);
   $('#loaiDon').onchange = doiLoaiDon;
+  $('#ngayDon').addEventListener('change', () => { if ($('#loaiDon').value === 'Cắt ca') veCatCa(); });
+  $('#catCa').onchange = veGioCat; $('#catKieu').onchange = xemCat; $('#catGio').onchange = xemCat;
   $('#thang').onchange = loadCong;
   $('#btnQL').onclick = e => lock(e.currentTarget, qlLogin);
   $('#adminPin').onkeydown = e => { if (e.key === 'Enter') $('#btnQL').click(); };
@@ -1046,6 +1142,7 @@ async function init(){
   $('#btnDuyetHet').onclick = () => duyet('*');
   $('#btnThemCa').onclick = () => caForm('');
   $('#thangQL').onchange = loadLuong;
+  $('#qlBP').onchange = () => { S.bp = $('#qlBP').value; renderQL(S.ql); veLuong(); };
   $('#btnXuat').onclick = e => lock(e.currentTarget, xuatLuong);
   $('#btnKhauTru').onclick = themKhauTru;
   $('#btnDoiPin').onclick = doiPin;
