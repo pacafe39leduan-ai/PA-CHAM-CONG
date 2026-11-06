@@ -55,16 +55,20 @@
   .dkBang td:first-child span{display:block;font-weight:400;color:var(--phu, #7a6a5c);font-size:12px}
   .dkBang input{margin:0}
   #inVung{display:none}
+  @page{margin:4mm 2mm}
   @media print{
     body > *:not(#inVung){display:none !important}
-    html,body{background:#fff !important}
-    #inVung{display:block;font-family:Arial,sans-serif;color:#000}
+    html,body{background:#fff !important;margin:0 !important;padding:0 !important;width:auto !important;max-width:none !important}
+    #inVung{display:block;font-family:Arial,sans-serif;color:#000;width:100%;margin:0;padding:0}
     #inVung th{color:#000;background:#eee}
-    #inVung .trang{page-break-after:always;padding:8mm}
+    #inVung .trang{page-break-after:always;padding:0;margin:0}
     #inVung .trang:last-child{page-break-after:auto}
     #inVung table{width:100%;border-collapse:collapse;font-size:14px}
-    #inVung th,#inVung td{border:1px solid #000;padding:6px 8px;text-align:left;vertical-align:top}
-    #inVung h2{margin:0 0 4px;font-size:18px}
+    #inVung th,#inVung td{border:1px solid #000;padding:5px 6px;text-align:left;vertical-align:top}
+    #inVung .ngay{width:1%;white-space:nowrap}
+    #inVung td.ghi{word-break:break-word}
+    #inVung h2{margin:0 0 2px;font-size:15px}
+    #inVung p{margin:0 0 4px;font-size:13px}
   }
   .dangluu{background:#fff4d6;color:#7a4b00;border:2px solid #f0b429;border-radius:10px;padding:10px;font-weight:800;font-size:17px;line-height:1.35}
   .dangluu small{font-weight:600;font-size:13px} .errbox{background:var(--do-nhat);color:var(--do)}
@@ -1113,9 +1117,8 @@ function inDK(ma){
   const tuan = ddmm(k.tuan) + ' – ' + ddmm(congNgay(k.tuan, 6)) + '/' + k.tuan.slice(0, 4);
   $('#inVung').innerHTML = ds.map(x => `<div class="trang"><h2>PHIẾU ĐĂNG KÝ CA – TUẦN ${tuan}</h2>
     <p><b>Nhân viên:</b> ${esc(x.ten)} &nbsp; <b>Bộ phận:</b> ${esc(x.boPhan || '')} &nbsp; <b>Gửi lúc:</b> ${esc(x.luc)}</p>
-    <table><thead><tr><th style="width:110px">Ngày</th><th>Ghi chú của nhân viên</th><th style="width:150px">Ca được xếp</th></tr></thead><tbody>
-    ${THU.map((th, i) => `<tr><td><b>${th}</b><br>${ddmm(congNgay(k.tuan, i))}</td><td>${esc(x.ghi[i] || '')}</td><td></td></tr>`).join('')}</tbody></table>
-    <p style="margin-top:24px">Người xếp ca: ............................................</p></div>`).join('');
+    <table><thead><tr><th class="ngay">Ngày</th><th>Ghi chú của nhân viên</th></tr></thead><tbody>
+    ${THU.map((th, i) => `<tr><td class="ngay"><b>${th.replace('Thứ ', 'T').replace('Chủ nhật', 'CN')}</b> ${ddmm(congNgay(k.tuan, i))}</td><td class="ghi">${esc(x.ghi[i] || '')}</td></tr>`).join('')}</tbody></table></div>`).join('');
   window.print();
 }
 async function xuLyVang(id, chon){
