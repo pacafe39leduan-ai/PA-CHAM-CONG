@@ -67,7 +67,7 @@
   #bong .tra { white-space:pre-line; }
   #bong .boqua { position:absolute; top:4px; right:6px; border:0; background:transparent; color:var(--mo); font-size:12px; cursor:pointer; padding:2px 4px; }
   #bong .boqua:hover { color:var(--do); }
-  #bong.rong { max-width:min(520px, 92vw); }
+  #bong.rong { max-width:min(560px, 92vw); max-height:min(70vh, 640px); overflow-y:auto; }
   #bong .goiy { border:1px solid var(--vang, #e0a800); background:#fff8e1; color:#7a5200; border-radius:12px; padding:2px 9px; font-size:12px; cursor:pointer; margin-left:4px; }
   #bong .gy { margin-top:6px; line-height:1.9; }
   #bong .gy span { display:block; font-size:11px; font-weight:700; color:var(--mo); text-transform:uppercase; letter-spacing:.3px; line-height:1.4; }
@@ -401,7 +401,9 @@ async function traLoi(cau, sk) { bong.classList.remove('rong');
 }
 const chatForm = $('#chat');
 // Câu hỏi tra cứu (lương / giờ làm của một người) hay câu trả lời cho việc đang hỏi?
-const LA_HOI = /lương|thực lĩnh|giờ làm|giờ công|bao nhiêu giờ|số giờ|bao nhiêu ca|chấm công|\bcông\b|ca làm|vào ca|đi làm|trong ca|có mặt|trễ|vắng|nghỉ|lịch|ai làm|ca mấy|làm ca|\bmai\b|tuần (này|sau)|chờ duyệt|chưa duyệt|việc gì|còn gì|đơn nào|có đơn|tăng ca nào|biên bản nào|nhiều nhất|ít nhất|cao nhất|thấp nhất|xếp hạng|trợ giúp|hướng dẫn|gợi ý|chưa\s*\??$|\?/i;
+const LA_HOI = /lương|thực lĩnh|giờ làm|giờ công|bao nhiêu giờ|số giờ|bao nhiêu ca|chấm công|\bcông\b|ca làm|vào ca|đi làm|trong ca|có mặt|trễ|vắng|nghỉ|lịch|ai làm|ca mấy|làm ca|\bmai\b|tuần (này|sau)|chờ duyệt|chưa duyệt|việc gì|còn gì|đơn nào|có đơn|tăng ca nào|biên bản nào|nhiều nhất|ít nhất|cao nhất|thấp nhất|xếp hạng|trợ giúp|hướng dẫn|gợi ý|sáng|trưa|chiều|tối|đêm|khuya|thu ngân|phục vụ|pha chế|tạp vụ|quản lý|giám sát|mở cửa|đóng cửa|\boff\b|thiếu|vị trí|bộ phận|khối|gồm|làm cùng|làm chung|tan ca|mấy giờ|bây giờ|được xếp|chủ nhật|thứ \w+|ngày mốt|chưa\s*\??$|\?/i;
+// có giờ trong câu nhưng rõ là câu hỏi ("lúc 20h tối nay ai làm phục vụ") -> vẫn là hỏi, không phải trả lời giờ vào/ra
+const HOI_RO = /(^|\s)(ai|mấy|bao nhiêu|lịch|nào|gì)(\s|$)|\?|có .+ không/i;
 // 40 câu hỏi mẫu – bấm "Gợi ý" để chọn, câu sẽ điền sẵn vào ô chat (sửa tên rồi Enter)
 const GOI_Y = [
   ['Duyệt (khi Hóng hỏi)', ['ok', 'không', 'tha cho nó', 'cho ăn biên bản', 'không phạt', '90p', 'vào 8:05 ra 17:00', 'lỗi chấm công']],
@@ -412,6 +414,21 @@ const GOI_Y = [
   ['Giờ công', ['giờ làm Nhi tuần này', 'Khang làm bao nhiêu giờ tháng này', 'Thu Hương bao nhiêu ca tháng 11', 'công Vy từ 1/11 đến 15/11', 'giờ làm Trinh hôm qua']],
   ['Xếp hạng', ['tháng này ai đi trễ nhiều nhất', 'ai làm nhiều giờ nhất', 'ai ít ca nhất']],
   ['Ra lệnh cho Hóng', ['đi ngủ đi', 'ngồi xuống', 'đứng dậy', 'về chỗ cũ']],
+  // 50 câu tra cứu lịch theo Roster (khối / vị trí / buổi / giờ)
+  ['Lịch theo buổi & vị trí', ['sáng mai có ai làm việc', 'sáng mai ai làm thu ngân', 'ai làm phục vụ sáng mai', 'thu ngân chiều nay là ai', 'tối nay ai trực', 'đêm nay ai làm', 'ca đêm nay pha chế là ai',
+    'trưa mai có ai làm phục vụ không', 'chiều mai thu ngân ai làm', 'tối mai ai làm', 'mai có mấy người làm', 'sáng mai có bao nhiêu người', 'thứ 2 tuần sau ai làm thu ngân', 'chủ nhật ai làm pha chế',
+    'thứ 7 tuần sau sáng ai làm', 'ngày 18/11 ai làm phục vụ', 'tuần sau ai làm thu ngân', 'ngày mốt ai làm', 'lịch phục vụ tuần này']],
+  ['Lịch theo giờ', ['bây giờ ai đang có lịch làm', 'lúc 20h tối nay ai làm phục vụ', '3h đêm nay ai trực', '7h sáng mai ai làm thu ngân']],
+  ['Mở cửa · đóng cửa · nghỉ · thiếu', ['ai mở cửa sáng mai', 'ai đóng cửa tối nay', 'thứ 2 ai mở cửa', 'mai ai nghỉ', 'hôm nay ai off', 'thu ngân mai ai nghỉ', 'mai có thiếu người không', 'tối mai có thiếu thu ngân không']],
+  ['Vị trí / khối', ['Khang làm vị trí gì', 'Hằng thuộc bộ phận nào', 'Thu Hương làm ở khối nào', 'phục vụ gồm những ai', 'thu ngân có những ai', 'quản lý là ai']],
+  ['Lịch từng người', ['Khang mấy giờ vào ca', 'Gia Hân mai mấy giờ vào ca', 'Sang mấy giờ tan ca', 'Hằng mai làm ca mấy', 'Hiếu sáng mai có làm không', 'Yến Nhi chủ nhật có ca không',
+    'lịch Vy tuần sau', 'Khang làm chung với ai mai', 'tối nay Sang làm cùng ai', 'Khang tuần này được xếp mấy ca', 'Huy 3h sáng mai có ca không']],
+  ['Xếp hạng theo lịch', ['tuần này ai được xếp nhiều ca nhất', 'tuần sau ai được xếp nhiều giờ nhất theo lịch']],
+  ['Phạt · biên bản · khấu trừ', ['tháng này Khang bị phạt bao nhiêu', 'ai có biên bản tháng này', 'tháng này phạt tổng bao nhiêu', 'tháng trước ai bị phạt']],
+  ['So với lịch', ['hôm qua ai làm lố giờ so với lịch', 'tuần này ai về sớm hơn lịch', 'tuần này ai đi trễ', 'tháng này ai về sớm nhiều nhất']],
+  ['Thống kê đơn', ['tháng này ai xin nghỉ nhiều nhất', 'Vy xin nghỉ mấy lần tháng này', 'tháng này có bao nhiêu đơn']],
+  ['Tăng ca đã duyệt', ['tháng này ai tăng ca nhiều nhất', 'tổng giờ tăng ca tuần này', 'Nhi tăng ca bao nhiêu giờ tháng này']],
+  ['Kiểm tra Roster', ['tuần sau còn ai chưa xếp lịch', 'Roster tuần sau có lỗi gì không']],
 ];
 function goiY() {   // bảng 40 câu mẫu trong bong bóng
   st.cuoiViec = Date.now(); clearTimeout(st.henBong); clearTimeout(hen);
@@ -456,7 +473,7 @@ function moiHoi() {   // bấm vào Hóng Rồi: mở ô hỏi
   if (st.dangMach && bong.classList.contains('hien')) { chatO.focus(); return; }
   clearTimeout(hen); clearInterval(khung); st.dangMach = true;
   tuThe('nghe-ngong'); hoatCanh('');
-  bong.innerHTML = 'Sếp cần gì ạ? Hỏi kiểu: <i>lương Khang tháng 11</i> · <i>Trinh vào ca chưa</i> · <i>mai ai làm</i> · <i>còn việc gì chờ duyệt</i> <button type="button" class="goiy">💡 Gợi ý 40 câu</button>';
+  bong.innerHTML = 'Sếp cần gì ạ? Hỏi kiểu: <i>lương Khang tháng 11</i> · <i>Trinh vào ca chưa</i> · <i>mai ai làm</i> · <i>còn việc gì chờ duyệt</i> <button type="button" class="goiy">💡 Gợi ý câu hỏi</button>';
   bong.onclick = null; bong.classList.remove('rong'); bong.classList.add('hien');
   if (TS) bong.appendChild(chatForm);
   datBong(); chatO.focus({ preventScroll: true });
@@ -516,7 +533,7 @@ $('#chat').addEventListener('submit', e => {
   e.preventDefault(); const o = chatO; const c = o.value.trim(); o.value = '';
   if (!c) return;
   if (lenhHong(c)) return;
-  if (LA_HOI.test(c) && !CO_GIO.test(c)) hoiHong(c); else traLoi(c);
+  if ((LA_HOI.test(c) && !CO_GIO.test(c)) || HOI_RO.test(c)) hoiHong(c); else traLoi(c);
 });
 
 // ---------- thông báo, đọc to ----------
