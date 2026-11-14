@@ -190,7 +190,7 @@ async function call(fn, ...args) {
 // ---------- nhân vật ----------
 const hr = $('#hr'), hrw = $('#hrw'), hrb = $('#hrb'), bong = $('#bong'), canh = $('#canh');
 const chatO = document.getElementById('chatO');   // giữ sẵn: ô chat có lúc nằm trong bong bóng, có lúc bị tách ra
-const st = { x: 120, dangMach: false, hang: [], daMach: null, ngay: '', tieng: luu.get('hr_tieng', false), cuoiNhac: Date.now(), cho: {}, tongCho: -1, lanDau: true, matMang: false, ten: 'chao', hoi: null, canQuyet: [], henBong: null, henHoi: null, phien: 0, keo: null, dayY: null, dungYen: 0, cuoiViec: Date.now(), dangNgu: false };
+const st = { x: 120, dangMach: false, hang: [], daMach: null, ngay: '', tieng: luu.get('hr_tieng', false), cuoiNhac: Date.now(), cho: {}, tongCho: -1, lanDau: true, matMang: false, ten: 'chao', hoi: null, canQuyet: [], henBong: null, henHoi: null, phien: 0, keo: null, dayY: null, dungYen: 0, cuoiViec: Date.now(), dangNgu: false, lenh: null };
 let K = 0.7;   // tỉ lệ hiển thị (theo chiều cao cửa sổ)
 function tinhK() { K = Math.max(0.35, TS ? Math.min(canh.clientHeight * 0.4, 220) / 380 : Math.min(canh.clientHeight * 0.56, 330) / 380); }
 function tuThe(t) {
@@ -238,7 +238,9 @@ function thuc(lyDo) {   // giật mình tỉnh
 function rongRai() {   // rảnh: đi lang thang, đứng hóng, ngồi, ghi sổ, thỉnh thoảng nhảy chơi; lâu không có việc thì ngủ
   if (st.dangMach) return;
   if (st.hang.length) { thuc(); return mach(st.hang.shift()); }
+  if (st.lenh === 'ngu') return ngu();   // sếp bảo ngủ: báo xong việc lại ngủ tiếp
   if (st.tongCho <= 0 && Date.now() - st.cuoiViec > NGU_SAU && Date.now() >= st.dungYen) return ngu();
+  if (st.lenh === 'ngoi') { tuThe('ngoi-nghi'); hoatCanh('tho'); hen = setTimeout(rongRai, 20000); return; }   // sếp bảo ngồi: ngồi yên tại chỗ
   const diHoacDung = (x, cb) => Date.now() < st.dungYen ? cb() : diToi(x, cb);   // vừa được sếp đặt chỗ: đứng yên tại đó
   diHoacDung(Math.random() * canh.clientWidth, async () => {
     if (st.dangMach) return;
@@ -260,6 +262,40 @@ async function mungHetViec() {   // hết việc tồn: nhảy mừng 2 cái
   tuThe('nhay-mung');
 }
 const NUT_BO_QUA = '<button type="button" class="boqua" title="Bỏ qua, đóng bong bóng">✕ Bỏ qua</button>';
+// ---------- sếp ra lệnh: ngủ / ngồi / đứng dậy / về chỗ ----------
+function lenhHong(c) {
+  let s = c.toLowerCase().replace(/[!.,~…?]+/g, ' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(/^(hóng rồi|hóng|em|bé|con bé)\s+/, '');
+  for (let i = 0; i < 2; i++) s = s.replace(/\s+(đi|nào|thôi|nha|nhé|giùm|đi em|em|đó|đấy)$/, '');
+  let l = null;
+  if (/^(đi |nằm |gục |lăn ra )?ngủ( (một lát|tí|chút|tiếp|trưa|sớm))?$/.test(s)) l = 'ngu';
+  else if (/^ngồi( (xuống|nghỉ|yên|im|chơi|đây))*$/.test(s)) l = 'ngoi';
+  else if (/^(đứng (dậy|lên)|dậy|thức dậy|tỉnh dậy|ngủ dậy|làm việc|đi làm việc|đi dạo|đi chơi|đi lại|đi loanh quanh)$/.test(s)) l = 'dung';
+  else if (/^(về chỗ( cũ)?|về đáy|xuống đáy)$/.test(s)) l = 'veCho';
+  if (!l) return false;
+  st.phien++; clearTimeout(st.henBong); clearTimeout(hen); clearInterval(khung);
+  st.hoi = null; st.dangMach = false; bong.classList.remove('hien', 'rong');
+  hr.classList.remove('lat', 'di', 'chay');
+  if (l === 'ngu') {
+    st.lenh = 'ngu'; if (st.dangNgu) { noiNhe('Zzz… đang ngủ mà sếp…'); return true; }
+    ngu(); noiNhe(nhieu(['Dạ, Hóng Rồi đi ngủ đây. Có chuyện là Hóng dậy mách liền!', 'Yeah, được ngủ! Zzz…']));
+  } else if (l === 'ngoi') {
+    if (st.dangNgu) thuc();
+    st.lenh = 'ngoi'; st.cuoiViec = Date.now(); tuThe('ngoi-nghi'); hoatCanh('tho');
+    noiNhe(nhieu(['Dạ, Hóng Rồi ngồi đây hóng tiếp.', 'Ngồi cho đỡ mỏi chân ạ.']));
+    hen = setTimeout(rongRai, 20000);
+  } else if (l === 'dung') {
+    const dangNgu = st.dangNgu; if (dangNgu) thuc();
+    st.lenh = null; st.cuoiViec = Date.now() + 7 * 60 * 1000;   // vừa bảo dậy: thức ít nhất 10 phút
+    tuThe(dangNgu ? 'hoang-hot' : 'dung');
+    noiNhe(dangNgu ? nhieu(['Dạ dạ, Hóng Rồi dậy rồi đây!', 'Ơ… có chuyện gì hả sếp? Dậy rồi ạ!']) : 'Dạ, Hóng Rồi đi tuần tiếp đây!');
+    hen = setTimeout(rongRai, 1800);
+  } else {
+    datDay(null); st.dungYen = 0; luuViTri(); noiNhe('Dạ, Hóng Rồi về chỗ cũ.');
+    hen = setTimeout(rongRai, 1800);
+  }
+  return true;
+}
 function boQua() {   // đóng bong bóng đang hiện, bỏ câu đang hỏi (việc vẫn còn trong sổ để trả lời sau)
   st.phien++; clearTimeout(st.henBong); clearTimeout(hen); clearInterval(khung);
   st.hoi = null; st.dangMach = false; bong.classList.remove('hien', 'rong');
@@ -375,6 +411,7 @@ const GOI_Y = [
   ['Lương', ['lương Khang tháng 11', 'lương Yến Nhi tháng này', 'lương Trinh tháng trước', 'thực lĩnh Thảo Vy', 'lương Khang từ 1/11 đến 15/11', 'tổng lương tháng này']],
   ['Giờ công', ['giờ làm Nhi tuần này', 'Khang làm bao nhiêu giờ tháng này', 'Thu Hương bao nhiêu ca tháng 11', 'công Vy từ 1/11 đến 15/11', 'giờ làm Trinh hôm qua']],
   ['Xếp hạng', ['tháng này ai đi trễ nhiều nhất', 'ai làm nhiều giờ nhất', 'ai ít ca nhất']],
+  ['Ra lệnh cho Hóng', ['đi ngủ đi', 'ngồi xuống', 'đứng dậy', 'về chỗ cũ']],
 ];
 function goiY() {   // bảng 40 câu mẫu trong bong bóng
   st.cuoiViec = Date.now(); clearTimeout(st.henBong); clearTimeout(hen);
@@ -478,6 +515,7 @@ hr.addEventListener('pointercancel', thaRa);
 $('#chat').addEventListener('submit', e => {
   e.preventDefault(); const o = chatO; const c = o.value.trim(); o.value = '';
   if (!c) return;
+  if (lenhHong(c)) return;
   if (LA_HOI.test(c) && !CO_GIO.test(c)) hoiHong(c); else traLoi(c);
 });
 
