@@ -473,7 +473,7 @@ function moiHoi() {   // bấm vào Hóng Rồi: mở ô hỏi
   if (st.dangMach && bong.classList.contains('hien')) { chatO.focus(); return; }
   clearTimeout(hen); clearInterval(khung); st.dangMach = true;
   tuThe('nghe-ngong'); hoatCanh('');
-  bong.innerHTML = 'Sếp cần gì ạ? Hỏi kiểu: <i>lương Khang tháng 11</i> · <i>Trinh vào ca chưa</i> · <i>mai ai làm</i> · <i>còn việc gì chờ duyệt</i> <button type="button" class="goiy">💡 Gợi ý câu hỏi</button>';
+  bong.innerHTML = 'Sếp cần gì? <button type="button" class="goiy">💡 Gợi ý câu hỏi</button>';
   bong.onclick = null; bong.classList.remove('rong'); bong.classList.add('hien');
   if (TS) bong.appendChild(chatForm);
   datBong(); chatO.focus({ preventScroll: true });
