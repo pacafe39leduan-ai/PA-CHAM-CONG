@@ -265,7 +265,8 @@
         <label for="qlBP" style="margin-top:0">Xem theo bộ phận</label>
         <select id="qlBP"><option value="">Tất cả bộ phận</option></select>
       </div>
-      <div class="card hidden" data-q="TANGCA" id="cardVang" style="border-color:#e0a3a3"><h3>Vắng mặt chờ xử lý</h3><p class="muted">Quá 2 tiếng sau giờ vào ca mà chưa chấm công, không có đơn nghỉ. Hỏi nhân viên rồi chọn: lỗi chấm công (nhập giờ) hoặc bỏ ca.</p><div id="qlVang"></div></div>
+      <div class="card hidden" data-q="TANGCA" id="cardVang" style="border-color:#e0a3a3"><h3>Vắng mặt chờ xử lý</h3><p class="muted">Quá 2 tiếng sau giờ vào ca mà chưa chấm công. Có đơn xin nghỉ chờ duyệt thì duyệt luôn ở đây (đồng ý = tự đóng báo vắng); không thì hỏi nhân viên rồi chọn: lỗi chấm công (nhập giờ) hoặc bỏ ca.</p><div id="qlVang"></div></div>
+      <div class="card hidden" data-q="TANGCA" id="cardNL" style="border-color:#e0c08a"><h3>Công ngoài lịch chờ duyệt</h3><p class="muted">Lượt chấm công không có ca nào trong lịch (Roster / ca lẻ). Chỉ tính lương khi bạn đồng ý.</p><div id="qlNL"></div></div>
       <div class="card" data-q="TANGCA" id="cardTC"><h3>Tăng ca chờ duyệt</h3><div id="qlTC"></div></div>
       <div class="card" data-q="CA" id="cardDKT">
         <div class="row" style="padding-top:0"><h3 style="margin:0">Đăng ký ca theo tuần</h3><button class="sm" onclick="inDK()">🖨 In tất cả</button></div>
@@ -324,6 +325,7 @@
         <h3>Khác</h3>
         <p class="muted" data-q="CHU">Thêm/sửa nhân viên, mã PIN, lương giờ, quyền quản lý (cột H trang NhanVien) và sửa giờ công trực tiếp trong file Google Sheets.</p>
         <a class="btn ghost" data-q="CHU" id="linkSheet" target="_blank" rel="noopener">Mở file Google Sheets</a>
+        <a class="btn ghost" data-q="CHU" href="hr.html" onclick="window.open('hr.html','hongroi','width=560,height=460');return false;">Mở cửa sổ Hóng Rồi mách lẻo</a>
         <button class="btn ghost" data-q="CHU" id="btnDoiPin">Đổi mã quản lý</button>
         <button class="btn ghost" id="btnQLOut">Thoát quản lý</button>
       </div>
@@ -963,11 +965,12 @@ async function loadCong(){
       ${dong('Biên bản vi phạm', d.bbViPham, (d.khauTru || []).filter(x => x.loai !== 'Truy thu').map(x => esc(x.ngay + ': ' + x.noiDung + ' (−' + money(x.tien) + ')')).join('<br>') || 'Không có', true)}
       ${dong('Tiền truy thu', d.truyThu, (d.khauTru || []).filter(x => x.loai === 'Truy thu').map(x => esc(x.ngay + ': ' + x.noiDung + ' (−' + money(x.tien) + ')')).join('<br>') || 'Không có', true)}
       <tr><th>Tạm tính</th><th class="r" style="font-size:17px">${money(d.tong)}</th></tr></tbody></table>
-      ${d.tangCaCho ? `<p class="muted">${d.tangCaCho} lượt tăng ca đang chờ chủ quán duyệt.</p>` : ''}` : '';
+      ${d.tangCaCho ? `<p class="muted">${d.tangCaCho} lượt tăng ca đang chờ chủ quán duyệt.</p>` : ''}${d.ngoaiLichCho ? `<p class="muted">${d.ngoaiLichCho} lượt ngoài lịch đang chờ chủ quán duyệt (chưa tính lương).</p>` : ''}` : '';
     const nhan = r => [r.heLe > 1 ? `<span class="tag ok">Lễ x${r.heLe}</span>` : '', r.gioDem > 0 ? `<span class="tag wait">Đêm ${r.gioDem}h</span>` : '',
       r.truGio ? `<span class="tag bad">Trễ −${r.truGio}h</span>` : '', r.phat ? `<span class="tag bad">BB −${money(r.phat)}</span>` : '',
       r.phatCho ? `<span class="tag wait">BB chờ xét</span>` : '', r.tangCa ? `<span class="tag ok">Tăng ca ${r.tangCa}′</span>` : '',
-      r.tinhTu ? `<span class="tag wait">Tính từ ${r.tinhTu}</span>` : '', r.tinhDen ? `<span class="tag wait">Tính đến ${r.tinhDen}</span>` : '', r.tangCaCho ? `<span class="tag wait">Tăng ca chờ duyệt</span>` : ''].join(' ');
+      r.tinhTu ? `<span class="tag wait">Tính từ ${r.tinhTu}</span>` : '', r.tinhDen ? `<span class="tag wait">Tính đến ${r.tinhDen}</span>` : '', r.tangCaCho ? `<span class="tag wait">Tăng ca chờ duyệt</span>` : '',
+      r.ngoaiLich === 'cho' ? `<span class="tag wait">Ngoài lịch – chờ chủ quán duyệt (${r.gioNgoaiLich} giờ)</span>` : '', r.ngoaiLich === 'khong' ? `<span class="tag bad">Ngoài lịch – không tính công</span>` : ''].join(' ');
     $('#congBody').innerHTML = `<div class="sum"><div><span>Tổng giờ</span><b>${d.gio || 0}</b></div><div><span>Tạm tính</span><b>${money(d.tong)}</b></div></div>` + bang +
       (d.ds.length ? `<h3 style="margin:16px 0 4px">Từng ngày</h3><table><thead><tr><th>Ngày</th><th>Vào</th><th>Ra</th><th class="r">Giờ</th><th class="r">Tiền</th></tr></thead><tbody>` +
         d.ds.map(r => `<tr><td>${r.ngay}</td><td>${r.vao}${r.muon > 0 ? ` <span class="late">+${r.muon}′</span>` : ''}${r.coPhep ? ' <span class="tag ok">có phép</span>' : ''}</td><td>${r.ra}</td><td class="r">${r.gio || '—'}</td><td class="r">${r.ra !== '—' ? money(r.tien) : '—'}</td></tr>` +
@@ -1047,7 +1050,7 @@ function renderQL(d){
   $('#qlTC').innerHTML = d.tangCa.map(x => `<div class="row"><div><b>${esc(x.ten)}</b> <span class="muted">· ${esc(x.ngay)}</span><br>
       <span class="muted">Vào ${esc(x.vao)} · ca kết thúc ${esc(x.ketThuc)} · ${x.ra ? 'bấm ra ' + esc(x.ra) : '<span class="late">chưa bấm ra</span>'}</span></div>
       <div class="acts">${x.buoc === 1
-        ? `<button class="sm ok" onclick="tangCa('${esc(x.id)}','co')">Có (đến ${esc(x.ket30)})</button><button class="sm ghost" onclick="tangCa('${esc(x.id)}','khong')">Không (đến ${esc(x.ketThuc)})</button>`
+        ? `<button class="sm ok" onclick="tangCa('${esc(x.id)}','co')">Có (đến ${esc(x.ket30)})</button>${x.ra && x.phutRa > 30 ? `<button class="sm ok" onclick="tangCa('${esc(x.id)}','denRa')">Có (đến ${esc(x.ra)})</button>` : ''}<button class="sm ghost" onclick="tangCa('${esc(x.id)}','khong')">Không (đến ${esc(x.ketThuc)})</button>`
         : `<button class="sm ghost" onclick="tangCa('${esc(x.id)}','dung')">Ra đúng giờ ${esc(x.ketThuc)}</button><button class="sm ok" onclick="tangCa('${esc(x.id)}','1h')">Tăng ca 1 tiếng</button><button class="sm ok" onclick="tangCa('${esc(x.id)}','2h')">Tăng ca 2 tiếng</button><button class="sm" onclick="tangCa('${esc(x.id)}','khac')">Tăng ca khác…</button>`}</div></div>`).join('');
   $('#qlBB').innerHTML = d.viPham.length ? d.viPham.map(v => `<div class="row"><div><b>${esc(v.ten)}</b><br>
       <span class="muted">${esc(v.ngay)} vào ${esc(v.vao)} · trễ ${v.muon} phút</span><br><span class="late">Phạt ${money(v.phat)}</span></div>
@@ -1055,7 +1058,11 @@ function renderQL(d){
     : '<p class="muted">Không có biên bản nào chờ quyết định.</p>';
   const vc = d.vangCho || [];
   $('#cardVang').classList.toggle('hidden', !vc.length);
-  $('#qlVang').innerHTML = vc.map(x => `<div class="row"><div><b>${esc(x.ten)}</b><br><span class="muted">${ngayVN(x.ngay)} · ca ${esc(x.ca)}</span><br><span class="late">Chưa chấm vào ca</span></div>
+  const nl = d.ngoaiLich || [];
+  $('#cardNL').classList.toggle('hidden', !nl.length);
+  $('#qlNL').innerHTML = nl.map(x => `<div class="row"><div><b>${esc(x.ten)}</b><br><span class="muted">${ngayVN(x.ngay)} · vào ${esc(x.vao)} – ra ${esc(x.ra)} · ${x.gio} giờ</span><br><span class="tag wait">Không có ca trong lịch</span></div>
+      <div class="acts"><button class="sm ok" onclick="duyetNL('${esc(x.id)}',true)">Đồng ý trả công</button><button class="sm ghost" onclick="duyetNL('${esc(x.id)}',false)">Không trả</button></div></div>`).join('');
+  $('#qlVang').innerHTML = vc.map(x => `<div class="row"><div><b>${esc(x.ten)}</b><br><span class="muted">${ngayVN(x.ngay)} · ca ${esc(x.ca)}</span><br><span class="late">Chưa chấm vào ca</span>${x.donCho ? `<br><span class="tag wait">Có ${esc(x.donCho.loai.toLowerCase())} chờ duyệt</span> <span class="muted">${esc(x.donCho.noiDung)}</span><br><button class="sm ok" onclick="duyetDon('${esc(x.donCho.id)}',true)">Đồng ý đơn</button><button class="sm ghost" onclick="duyetDon('${esc(x.donCho.id)}',false)">Từ chối đơn</button>` : ''}</div>
       <div class="acts"><button class="sm ok" onclick="xuLyVang('${esc(x.id)}','loi')">Lỗi chấm công</button><button class="sm" onclick="xuLyVang('${esc(x.id)}','phat')">Bỏ ca – biên bản</button><button class="sm ghost" onclick="xuLyVang('${esc(x.id)}','khong')">Bỏ ca – không phạt</button></div></div>`).join('');
   if (d.dkTuan) veQLDK(Object.assign({}, d.dkTuan, { ds: d.dkTuan.ds.filter(hopBP) }));
   const mc = d.matCho || [];
@@ -1162,9 +1169,15 @@ async function caForm(id){
 }
 async function chotRa(id){
   const r = S.ql.dangMo.find(x => x.id === id);
-  const html = `<p><b>${esc(r.ten)}</b> vào ca lúc ${esc(r.vao)}</p><label>Giờ ra</label><input type="datetime-local" id="fRa" value="${esc(r.vaoISO)}">`;
+  // Có ca đã xếp: hỏi luôn có tính tăng ca không (chốt muộn hơn hết ca quá 30 phút), để lượt này không hiện lại ở "Tăng ca chờ duyệt"
+  const daDuyet = r.tangCa !== null && r.tangCa !== undefined;
+  const tc = !r.ketThuc ? '' : `<p class="muted" style="margin:10px 0 4px">Ca kết thúc ${esc(r.ketThuc)}.</p>` + (daDuyet && r.tangCa > 0
+    ? `<p class="muted" style="margin:0">Đã duyệt tăng ca ${r.tangCa} phút – công tính tối đa đến hết giờ tăng ca.</p><input type="hidden" id="fTC" value="">`
+    : `<label for="fTC">Ra sau ${esc(r.ketThuc)} thì</label><select id="fTC"><option value="khong">Không tăng ca – công tính đến ${esc(r.ketThuc)}</option><option value="co">Tính tăng ca đến giờ chốt</option></select>`);
+  const html = `<p><b>${esc(r.ten)}</b> vào ca lúc ${esc(r.vao)}</p><label>Giờ ra</label><input type="datetime-local" id="fRa" value="${esc(r.ketThucISO || r.vaoISO)}">${tc}`;
   if (!await modal('Chốt giờ ra', html, 'Lưu')) return;
-  try { renderQL(await call('adminChotRa', S.adminPin, id, $('#fRa').value, S.ip)); toast('Đã chốt giờ ra'); loadLuong(); } catch(e){ toast(e.message, true); }
+  const chonTC = $('#fTC') ? $('#fTC').value : '';
+  try { renderQL(await call('adminChotRa', S.adminPin, id, $('#fRa').value, S.ip, chonTC)); toast('Đã chốt giờ ra'); loadLuong(); } catch(e){ toast(e.message, true); }
 }
 async function duyetMat(id, dongY){
   try { const d = await call('adminDuyetMat', S.adminPin, id, dongY, S.ip); renderQL(d); toast(d.thongBao || (dongY ? 'Đã đồng ý' : 'Đã từ chối')); } catch(e){ toast(e.message, true); }
@@ -1211,6 +1224,10 @@ async function xuLyVang(id, chon){
   } else if (!await modal('Bỏ ca – không phạt?', `<p><b>${esc(x.ten)}</b> · ${ngayVN(x.ngay)} · ca ${esc(x.ca)}</p><p class="muted">Ghi nhận bỏ ca, không trừ tiền.</p>`, 'Xác nhận')) return;
   try { const d = await call('adminXuLyVang', S.adminPin, id, chon, vao, ra, tien, nd, S.ip); renderQL(d); toast(d.thongBao || 'Đã lưu', false, 6000); loadLuong(); }
   catch(e){ toast(e.message, true); }
+}
+async function duyetNL(id, dongY){
+  if (!dongY && !await modal('Không trả công', '<p>Lượt chấm công này sẽ không được tính lương. Chắc chắn?</p>', 'Không trả')) return;
+  try { renderQL(await call('adminNgoaiLich', S.adminPin, id, dongY, S.ip)); toast(dongY ? 'Đã đồng ý trả công' : 'Đã ghi: không trả công'); loadLuong(); } catch(e){ toast(e.message, true); }
 }
 async function duyetDon(id, dongY){
   try {
@@ -1279,7 +1296,7 @@ function veLuong(){
       ds.map(m => { let dau = '';
         if (nhieuNhom && m.boPhan !== nhom){ dau = cong() + `<tr><td colspan="3" style="padding-top:12px"><span class="tag">${esc(m.boPhan || 'Chưa xếp bộ phận')}</span></td></tr>`; nhom = m.boPhan; gN = 0; tN = 0; }
         g += m.gio; t += m.tong; gN += m.gio; tN += m.tong; return dau + `<tr><td><b>${esc(m.ten)}</b> <span class="muted">· ${m.soCa} ca</span><br><span class="muted" style="font-size:12px">${chiTietLuong(m)}</span>
-        ${m.lanMuon ? `<br><span class="late">Trễ ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.bienBanCho ? `<br><span class="tag wait">${m.bienBanCho} biên bản chờ quyết định</span>` : ''}${m.tangCaCho ? `<br><span class="tag wait">${m.tangCaCho} tăng ca chờ duyệt</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}${dsKhauTruHtml(m)}</td>
+        ${m.lanMuon ? `<br><span class="late">Trễ ${m.lanMuon} lần (${m.phutMuon}′)</span>` : ''}${m.bienBanCho ? `<br><span class="tag wait">${m.bienBanCho} biên bản chờ quyết định</span>` : ''}${m.tangCaCho ? `<br><span class="tag wait">${m.tangCaCho} tăng ca chờ duyệt</span>` : ''}${m.ngoaiLichCho ? `<br><span class="tag wait">${m.ngoaiLichCho} công ngoài lịch chờ duyệt</span>` : ''}${m.chuaRa ? `<br><span class="tag bad">${m.chuaRa} ca chưa chấm ra</span>` : ''}${dsKhauTruHtml(m)}</td>
         <td class="r">${m.gio}</td><td class="r"><b>${money(m.tong)}</b></td></tr>`; }).join('') +
       cong() + `<tr><th>Tổng${S.bp ? ' ' + esc(S.bp) : ''}</th><th class="r">${Math.round(g*100)/100}</th><th class="r">${money(t)}</th></tr></tbody></table>`;
 }
