@@ -43,6 +43,7 @@
   #bong.hien { opacity:1; transform:none; pointer-events:auto; cursor:pointer; }
   #bong .mo-dau { display:block; font-size:12px; color:var(--mo); margin-bottom:2px; }
   #bong .nhan { display:inline-block; font-size:11px; border-radius:6px; padding:1px 6px; margin-right:6px; color:#fff; vertical-align:1px; }
+  #bong .tra { white-space:pre-line; }
   #bong small { display:block; margin-top:6px; font-size:11px; color:var(--mo); }
   #bong .nut { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   #bong .nut button { font-size:13px; padding:5px 10px; border-radius:8px; border:1px solid var(--nau); background:#fff; color:var(--nau); cursor:pointer; }
@@ -64,6 +65,16 @@
   #dang button { width:100%; font-size:16px; padding:10px; border:0; border-radius:10px; background:var(--nau); color:#fff; cursor:pointer; }
   #dang p { color:var(--mo); font-size:13px; }
   #loiDang { color:var(--do) !important; min-height:18px; }
+  /* Chế độ trong suốt (app Hóng Rồi cho Windows, hoặc hr.html?trongsuot=1): chỉ còn nhân vật + bong bóng */
+  html.ts, html.ts body { background:transparent; }
+  html.ts header, html.ts #tuong, html.ts #san, html.ts #bien, html.ts #so, html.ts #chat { display:none; }
+  html.ts #canh { top:0; }
+  html.ts #hrw { bottom:6px; }
+  html.ts #bong { box-shadow:0 6px 18px rgba(0,0,0,.25); }
+  html.ts #bong #chat { display:flex; position:static; width:auto; margin-top:8px; }
+  html.ts #dang { background:transparent; align-items:flex-end; padding-bottom:20px; }
+  html.ts #dang .hop { background:var(--kem); border:2px solid var(--nau); border-radius:16px; padding:12px 16px; box-shadow:0 8px 24px rgba(0,0,0,.25); }
+  html.ts #dang img { height:100px; }
   @media (max-width:520px) { #so { display:none; } header .tt { display:none; } #chat { width:calc(100% - 16px); } }
 </style>
 </head>
@@ -81,7 +92,7 @@
   <div id="bien">P.A Tea &amp; Coffee · phòng nhân sự</div>
   <div id="hrw"><div id="hrb"><img id="hr" src="hr/chao.webp" alt="Hóng Rồi mách lẻo" draggable="false"></div></div>
   <div id="bong" role="status" aria-live="polite"></div>
-  <form id="chat" autocomplete="off"><input id="chatO" placeholder="Trả lời Hóng Rồi: ok / không / 1 tiếng…" aria-label="Trả lời Hóng Rồi"><button>Gửi</button></form>
+  <form id="chat" autocomplete="off"><input id="chatO" placeholder="Trả lời / hỏi Hóng Rồi: ok · không · lương Khang tháng 11…" aria-label="Trả lời hoặc hỏi Hóng Rồi"><button>Gửi</button></form>
   <div id="so"><h4 id="soTieuDe"><span>Sổ mách lẻo hôm nay</span><span id="soDem"></span></h4><div class="ds" id="soDs"></div></div>
 </div>
 <div id="dang">
@@ -101,10 +112,15 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwv-LwJq07oA4KH4NyA4fu1
 const CHU_KY = 90 * 1000;          // hỏi máy chủ mỗi 90 giây
 const NHAC_CHO = 45 * 60 * 1000;   // còn việc chờ duyệt: nhắc lại mỗi 45 phút
 const $ = s => document.querySelector(s);
+const APP = window.hongRoi || null;   // có khi chạy trong app Hóng Rồi cho Windows (cửa sổ trong suốt)
+const TS = !!APP || /[?&]trongsuot=1/.test(location.search);
+document.documentElement.classList.toggle('ts', TS);
+const LINK_APP = new URL('./', location.href).href;
+function moApp() { if (APP) APP.moLink(LINK_APP); else window.open(LINK_APP, 'pastaff'); }
 const luu = { get: (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
               set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
 // Kích thước gốc từng tư thế (ảnh trong thư mục hr/, cùng tỉ lệ đầu người). Ảnh "đi"/"chạy" quay mặt sang trái.
-const KT = {"dung":[155,380],"dut-tui":[153,375],"nghieng":[151,375],"nghe-ngong":[156,392],"ngoi-nghi":[154,280],"ghi-so":[154,382],"cuoi-khuc":[152,369],"khoanh-tay":[153,375],"khoanh-tay2":[152,378],"chong-hong":[169,370],"suyt":[174,352],"chong-nanh":[169,377],"chong-nanh2":[160,387],"chi-tro":[216,376],"chi-tro2":[209,367],"hoang-hot":[154,377],"nhun-vai":[217,378],"thi-tham":[140,382],"chao":[186,386],"chao2":[184,380],"dung-lai":[205,376],"nhay-mung":[236,404],"nhay-mung2":[241,427],"nhay-vui":[179,385],"nhun-chan":[197,374],"tiep-dat":[164,359],"chay":[226,376],"di1":[179,376],"di2":[173,380],"di3":[179,379],"di4":[171,385],"di5":[166,374],"di6":[156,371]};
+const KT = {"dung":[155,380],"dut-tui":[153,374],"nghieng":[151,374],"nghe-ngong":[156,392],"ngoi-nghi":[154,280],"ghi-so":[154,382],"cuoi-khuc":[152,368],"khoanh-tay":[153,374],"khoanh-tay2":[152,378],"chong-hong":[169,370],"suyt":[174,352],"chong-nanh":[169,378],"chong-nanh2":[160,386],"chi-tro":[216,376],"chi-tro2":[209,366],"hoang-hot":[154,377],"nhun-vai":[217,378],"thi-tham":[140,381],"chao":[186,387],"chao2":[184,380],"dung-lai":[205,377],"nhay-mung":[236,404],"nhay-mung2":[241,426],"nhay-vui":[179,386],"nhun-chan":[197,374],"tiep-dat":[164,360],"chay":[226,376],"di1":[179,377],"di2":[173,380],"di3":[179,379],"di4":[171,386],"di5":[166,375],"di6":[156,372]};
 Object.keys(KT).forEach(t => { const i = new Image(); i.src = 'hr/' + t + '.webp'; });   // tải sẵn ảnh
 const VONG_DI = ['di3', 'di4', 'di5', 'di6'];   // vòng bước chân
 const LOAI = {   // tư thế, nhãn, màu, chạy tới hay đi bộ, lời mở đầu
@@ -141,7 +157,7 @@ async function call(fn, ...args) {
 const hr = $('#hr'), hrw = $('#hrw'), bong = $('#bong'), canh = $('#canh');
 const st = { x: 120, dangMach: false, hang: [], daMach: null, ngay: '', tieng: luu.get('hr_tieng', false), cuoiNhac: Date.now(), cho: {}, tongCho: -1, lanDau: true, matMang: false, ten: 'chao', hoi: null, canQuyet: [], henBong: null, henHoi: null };
 let K = 0.7;   // tỉ lệ hiển thị (theo chiều cao cửa sổ)
-function tinhK() { K = Math.max(0.35, Math.min(canh.clientHeight * 0.56, 330) / 380); }
+function tinhK() { K = Math.max(0.35, TS ? Math.min(canh.clientHeight * 0.4, 220) / 380 : Math.min(canh.clientHeight * 0.56, 330) / 380); }
 function tuThe(t) { st.ten = t; hr.src = 'hr/' + t + '.webp'; hr.style.height = Math.round(KT[t][1] * K) + 'px'; }
 function nuaRong() { return (KT[st.ten] ? KT[st.ten][0] : 160) * K / 2; }
 function hoatCanh(c) { hr.classList.remove('di', 'chay', 'giat', 'nhay', 'tho'); if (c) { void hr.offsetWidth; hr.classList.add(c); } }
@@ -218,10 +234,11 @@ function mach(sk) {   // chạy/đi ra giữa, đổi tư thế, mách
     bong.onclick = e => {
       const b = e.target.closest('button[data-i]');
       if (b && coHoi) return traLoi(sk.nut[Number(b.dataset.i)][0], sk);
-      if (e.target.closest('.mo')) window.open('./', 'pastaff');
+      if (e.target.closest('.mo')) moApp();
     };
     if (!sk.nhe && sk.loai !== 'loi') { if (sk.loai !== 'mung') baoGoc(L.nhan, sk.text); doc((mo ? mo + ' ' : '') + sk.text); }
     st.hoi = coHoi ? sk : null;
+    if (coHoi && TS) { bong.appendChild(chatForm); datBong(); }
     if (coHoi) $('#chatO').focus({ preventScroll: true });
     henDong(coHoi ? 35000 : sk.nhe ? 4500 : 9000);
   }, L.chay && !sk.nhe);
@@ -241,7 +258,7 @@ async function traLoi(cau, sk) {
   if (!cau) return;
   if (!sk) {   // chưa có câu hỏi nào đang mở: lấy việc cần quyết mới nhất trong sổ
     sk = st.canQuyet.length ? st.canQuyet[st.canQuyet.length - 1] : null;
-    if (!sk) { if (!st.dangMach) noiNhe('Hiện chưa có việc gì cần sếp quyết đâu ạ.'); return; }
+    if (!sk) { if (!st.dangMach) noiNhe('Hiện chưa có việc gì cần sếp quyết. Muốn tra thì gõ: lương Khang tháng 11.'); return; }
   }
   clearTimeout(st.henBong); clearTimeout(hen); clearInterval(khung);
   st.dangMach = true; st.hoi = sk;
@@ -250,6 +267,7 @@ async function traLoi(cau, sk) {
   let kq;
   try { kq = await call('adminHrTraLoi', luu.get('hr_pin', ''), sk.k, cau, ''); }
   catch (e) { kq = { xong: false, loi: true, text: e.message }; }
+  $('#chatO').placeholder = 'Trả lời / hỏi Hóng Rồi: ok · không · lương Khang tháng 11…';
   if (kq.xong) {
     st.canQuyet = st.canQuyet.filter(x => x.k !== sk.k); st.hoi = null;
     tuThe(Math.random() < 0.5 ? 'chao2' : 'ghi-so'); hoatCanh('giat');
@@ -264,11 +282,51 @@ async function traLoi(cau, sk) {
     tuThe('nghe-ngong');
     bong.innerHTML = esc(kq.text) + (sk.nut ? '<div class="nut">' + sk.nut.map((n, i) => '<button type="button" data-i="' + i + '">' + esc(n[1]) + '</button>').join('') + '</div>' : '');
     bong.onclick = e => { const b = e.target.closest('button[data-i]'); if (b) traLoi(sk.nut[Number(b.dataset.i)][0], sk); };
-    henDong(30000);
+    if (TS) { bong.appendChild(chatForm); }
+    const hoiGio = /mấy giờ/.test(kq.text);
+    $('#chatO').placeholder = hoiGio ? 'vd: vào 8:05 ra 17:00' : 'Trả lời / hỏi Hóng Rồi: ok · không · lương Khang tháng 11…';
+    $('#chatO').focus({ preventScroll: true });
+    henDong(hoiGio ? 90000 : 30000);
   }
   datBong();
 }
-$('#chat').addEventListener('submit', e => { e.preventDefault(); const o = $('#chatO'); const c = o.value; o.value = ''; traLoi(c); });
+const chatForm = $('#chat');
+// Câu hỏi tra cứu (lương / giờ làm của một người) hay câu trả lời cho việc đang hỏi?
+const LA_HOI = /lương|thực lĩnh|giờ làm|giờ công|bao nhiêu giờ|số giờ|bao nhiêu ca|chấm công|\bcông\b|ca làm/i;
+async function hoiHong(cau) {
+  clearTimeout(st.henBong); clearTimeout(hen); clearInterval(khung);
+  const hoiCu = st.hoi;
+  st.dangMach = true;
+  tuThe('ghi-so'); hoatCanh('');
+  bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span>Để Hóng Rồi lật sổ…'; bong.onclick = null; bong.classList.add('hien'); datBong();
+  let kq;
+  try { kq = await call('adminHrHoi', luu.get('hr_pin', ''), cau); }
+  catch (e) { kq = { hieu: true, text: e.message, loi: true }; }
+  if (!kq.hieu) { st.dangMach = false; return traLoi(cau, hoiCu); }   // không phải câu hỏi: coi là câu trả lời
+  st.hoi = hoiCu;
+  tuThe(kq.loi ? 'nhun-vai' : /hỏi ai|không thấy/.test(kq.text) ? 'nhun-vai' : 'chao2'); hoatCanh('giat');
+  bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span><span class="tra">' + esc(kq.text) + '</span>' +
+    (TS ? '' : '');
+  if (TS) bong.appendChild(chatForm);
+  datBong(); doc(kq.text.replace(/\n/g, '. '));
+  henDong(25000);
+}
+function moiHoi() {   // bấm vào Hóng Rồi: mở ô hỏi
+  if (st.dangMach && bong.classList.contains('hien')) { $('#chatO').focus(); return; }
+  clearTimeout(hen); clearInterval(khung); st.dangMach = true;
+  tuThe('nghe-ngong'); hoatCanh('');
+  bong.innerHTML = 'Sếp cần gì ạ? Hỏi kiểu: <i>lương Khang tháng 11</i> · <i>giờ làm Nhi tuần này</i> · <i>công Vy từ 1/11 đến 15/11</i>';
+  bong.onclick = null; bong.classList.add('hien');
+  if (TS) bong.appendChild(chatForm);
+  datBong(); $('#chatO').focus({ preventScroll: true });
+  henDong(30000);
+}
+hr.addEventListener('click', moiHoi);
+$('#chat').addEventListener('submit', e => {
+  e.preventDefault(); const o = $('#chatO'); const c = o.value.trim(); o.value = '';
+  if (!c) return;
+  if (LA_HOI.test(c)) hoiHong(c); else traLoi(c);
+});
 
 // ---------- thông báo, đọc to ----------
 function baoGoc(tieuDe, text) {
@@ -290,7 +348,7 @@ function veNut() {
   $('#nutBao').classList.toggle('tat', q !== 'granted');
   $('#nutBao').textContent = q === 'granted' ? 'Thông báo: bật' : 'Bật thông báo';
 }
-$('#nutTieng').onclick = () => { st.tieng = !st.tieng; luu.set('hr_tieng', st.tieng); veNut(); if (st.tieng) doc('Hóng Rồi sẵn sàng mách lẻo.'); };
+$('#nutTieng').onclick = () => { st.tieng = !st.tieng; luu.set('hr_tieng', st.tieng); veNut(); baoKhay(); if (st.tieng) doc('Hóng Rồi sẵn sàng mách lẻo.'); };
 $('#nutBao').onclick = async () => {
   if (!('Notification' in window)) return noiNhe('Trình duyệt này không hỗ trợ thông báo.');
   if (Notification.permission === 'denied') return noiNhe('Thông báo đang bị chặn – mở cài đặt trang web trong Chrome để cho phép.');
@@ -314,7 +372,7 @@ $('#soTieuDe').onclick = () => $('#so').classList.toggle('thu');
 function veCho(cho) {
   const ten = { don: 'đơn', xin: 'xin phép', tangca: 'tăng ca', vang: 'vắng', mat: 'lỗi mặt', nl: 'ngoài lịch' };
   $('#cho').innerHTML = Object.keys(ten).filter(k => cho[k]).map(k => '<span>' + cho[k] + ' ' + ten[k] + '</span>').join('');
-  $('#cho').onclick = () => window.open('./', 'pastaff');
+  $('#cho').onclick = moApp;
 }
 
 // ---------- hỏi máy chủ ----------
@@ -329,7 +387,7 @@ async function hoi() {
     }
     const tong = Object.values(d.cho).reduce((a, b) => a + b, 0);
     if (st.tongCho > 0 && tong === 0) st.hang.push({ loai: 'mung', text: 'Hết sạch việc tồn rồi! Sếp đỉnh quá!' });
-    st.tongCho = tong; st.cho = d.cho; veCho(d.cho);
+    st.tongCho = tong; st.cho = d.cho; veCho(d.cho); baoKhay();
     if (st.matMang) { st.matMang = false; st.hang.push({ loai: 'vao', nhe: true, text: 'Có mạng lại rồi, hóng tiếp!' }); }
     $('#tt').textContent = 'đang hóng · ' + (d.dangCo.length ? d.dangCo.length + ' người trong ca' : 'chưa ai trong ca') + ' · cập nhật ' + d.luc.slice(0, 5);
     st.canQuyet = d.ds.filter(x => x.nut && x.nut.length);
@@ -382,6 +440,22 @@ function batDau() {
   setTimeout(rongRai, 2400);
   hoi();
 }
+// App Windows: chỗ trống bấm xuyên qua xuống màn hình bên dưới; chỉ nhân vật, bong bóng, ô trả lời, hộp PIN là bấm được
+if (APP) {
+  let tren = null;
+  const kiem = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    const co = !!(el && el.closest('#hr, #bong.hien, #dang .hop, #chat'));
+    if (co !== tren) { tren = co; APP.xuyen(!co); }
+  };
+  document.addEventListener('mousemove', e => kiem(e.clientX, e.clientY));
+  APP.onLenh(l => {
+    if (l === 'docTo') { st.tieng = !st.tieng; luu.set('hr_tieng', st.tieng); veNut(); noiNhe(st.tieng ? 'Đã bật đọc to.' : 'Đã tắt đọc to.'); baoKhay(); }
+    else if (l === 'doiPin') { luu.set('hr_pin', ''); location.reload(); }
+    else if (l === 'moApp') moApp();
+  });
+}
+function baoKhay() { if (APP) APP.trangThai({ tieng: st.tieng, cho: st.tongCho > 0 ? st.tongCho : 0 }); }
 window.addEventListener('resize', () => { tinhK(); tuThe(st.ten); if (bong.classList.contains('hien')) datBong(); });
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
 if (luu.get('hr_pin', '')) { $('#dang').style.display = 'none'; batDau(); } else moDang();
