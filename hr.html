@@ -156,6 +156,7 @@ const VONG_DI = ['di3', 'di4', 'di5', 'di6'];   // vòng bước chân
 const LOAI = {   // tư thế, nhãn, màu, chạy tới hay đi bộ, lời mở đầu
   tre:    { tu: 'chong-hong', nhan: 'Đi trễ',     mau: '#b7791f', mo: ['Sếp ơi sếp!', 'Bắt quả tang nè sếp:', 'Hóng được tin nóng:'] },
   som:    { tu: 'chi-tro',    nhan: 'Về sớm',     mau: '#c0392b', chay: 1, mo: ['Ủa ủa sếp ơi!', 'Kìa sếp, nhìn kìa:', 'Có người chuồn sớm nè:'] },
+  chuavao:{ tu: 'chong-hong', nhan: 'Chưa vào ca', mau: '#b7791f', chay: 1, mo: ['Sếp ơi, thiếu người:', 'Ơ, giờ này chưa thấy đâu:', 'Hóng nãy giờ mà chưa thấy:'] },
   vang:   { tu: 'hoang-hot',  nhan: 'Vắng mặt',   mau: '#c0392b', chay: 1, mo: ['Sếp ơi, có biến!', 'Chết rồi sếp ơi:', 'Ơ kìa, thiếu người:'] },
   don:    { tu: 'suyt',       nhan: 'Đơn mới',    mau: '#2c6fb7', mo: ['Psst… sếp nghe nè:', 'Có giấy tờ nè sếp:'] },
   xin:    { tu: 'thi-tham',   nhan: 'Xin phép',   mau: '#2c6fb7', mo: ['Psst… sếp nghe nè:', 'Có người xin xỏ nè:'] },
@@ -458,7 +459,13 @@ async function hoiHong(cau) { bong.classList.remove('rong');
   try { kq = await call('adminHrHoi', luu.get('hr_pin', ''), cau); }
   catch (e) { kq = { hieu: true, text: e.message, loi: true }; }
   if (phien !== st.phien) return;   // sếp đã bấm Bỏ qua
-  if (!kq.hieu) { st.dangMach = false; return traLoi(cau, hoiCu); }   // không phải câu hỏi: coi là câu trả lời
+  if (!kq.hieu && !HOI_RO.test(cau)) { st.dangMach = false; return traLoi(cau, hoiCu); }   // không phải câu hỏi: coi là câu trả lời
+  if (!kq.hieu) {   // rõ là câu hỏi mà Hóng chưa hiểu: KHÔNG coi là câu trả lời duyệt (15/11/2026: "có gì cần duyệt không" từng bị hiểu là "không")
+    st.hoi = hoiCu; tuThe('nhun-vai'); hoatCanh('giat');
+    bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span>Hóng Rồi chưa hiểu câu hỏi này, chưa làm gì cả. Sếp hỏi lại kiểu khác, hoặc bấm <button type="button" class="goiy">💡 Gợi ý câu hỏi</button>';
+    if (TS) bong.appendChild(chatForm);
+    datBong(); henDong(30000); return;
+  }
   st.hoi = hoiCu;
   tuThe(kq.loi ? 'nhun-vai' : /hỏi ai|không thấy/.test(kq.text) ? 'nhun-vai' : 'chao2'); hoatCanh('giat');
   bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span><span class="tra">' + esc(kq.text) + '</span>' +
