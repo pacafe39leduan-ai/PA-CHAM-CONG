@@ -166,13 +166,15 @@ const luu = { get: (k, d) => { try { const v = localStorage.getItem(k); return v
               set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
 // Ảnh Hóng (bộ mới 11/2026, tách nền lại từ bộ caro 18/11 – hết viền trắng). Mọi ảnh đứng/đi cùng khung 300×400: đầu ở giữa, chân chạm đáy → đổi ảnh không bị xê dịch.
 // KT[t] = [độ rộng thân thật (để đặt bong bóng), chiều cao khung]. Ảnh "đi" quay mặt sang trái.
-const KT = {"w01":[140,400],"w02":[172,400],"w03":[172,400],"w05":[174,400],"w07":[200,400],"w09":[166,400],"w10":[138,400],"w11":[130,400],"w12":[140,400],"chanh-choe":[150,400],"hong-chuyen":[162,400],"nghi-ngoi":[144,400],"noi-chuyen":[252,400],"nhun-vai":[218,400],"khinh-bi":[152,400],"tu-choi":[212,400],"ngac-nhien":[148,400],"che-mieng":[142,400],"chan-ghet":[156,400],"che-bai":[218,400],"met-moi":[142,400],"chi-tro":[286,400],"gian-doi":[140,400],"tron-mat":[192,400],"xi-xam":[144,400],"cuoi-lon":[148,400],"luom-nguyt":[140,400],"ngu-ban":[307,311],"ngu-ghe":[303,316],"ngu-cam":[200,321],"ngu-gap":[192,317],"dung":[140,400]};
+const KT = {"w01":[140,400],"w02":[172,400],"w03":[172,400],"w05":[174,400],"w07":[200,400],"w09":[166,400],"w10":[138,400],"w11":[130,400],"w12":[140,400],"chanh-choe":[150,400],"hong-chuyen":[162,400],"nghi-ngoi":[144,400],"noi-chuyen":[252,400],"nhun-vai":[218,400],"khinh-bi":[152,400],"tu-choi":[212,400],"ngac-nhien":[148,400],"che-mieng":[142,400],"chan-ghet":[156,400],"che-bai":[218,400],"met-moi":[142,400],"chi-tro":[286,400],"gian-doi":[140,400],"tron-mat":[192,400],"xi-xam":[144,400],"cuoi-lon":[148,400],"luom-nguyt":[140,400],"ngu-ban":[307,311],"ngu-ghe":[303,316],"ngu-cam":[378,321],"ngu-gap":[192,317],"dung":[140,400]};
 // Tên tư thế dùng trong code → ảnh mới gần nghĩa nhất
 const ANH = { 'dut-tui': 'khinh-bi', nghieng: 'luom-nguyt', 'nghe-ngong': 'hong-chuyen', 'ngoi-nghi': 'ngu-cam', 'ghi-so': 'nghi-ngoi',
   'cuoi-khuc': 'che-mieng', 'khoanh-tay': 'chanh-choe', 'khoanh-tay2': 'gian-doi', 'chong-hong': 'khinh-bi', suyt: 'noi-chuyen',
   'chong-nanh': 'gian-doi', 'chong-nanh2': 'che-bai', 'chi-tro2': 'tron-mat', 'hoang-hot': 'ngac-nhien', 'thi-tham': 'xi-xam',
   chao: 'tu-choi', chao2: 'noi-chuyen', 'dung-lai': 'tu-choi', 'nhay-mung': 'cuoi-lon', 'nhay-mung2': 'cuoi-lon', 'nhay-vui': 'cuoi-lon',
   'nhun-chan': 'dung', 'tiep-dat': 'dung', chay: 'w03' };
+// Tạm thay ảnh lỗi bằng ảnh khác (để trống khi không có ảnh lỗi). v55: 6 ảnh đã tách lại từ ảnh gốc -> không còn thay.
+const TAM_THAY = {};
 const NGU_ANH = ['ngu-ban', 'ngu-ghe', 'ngu-cam', 'ngu-gap'];
 Object.keys(KT).forEach(t => { const i = new Image(); i.src = 'hr/' + t + '.webp'; });   // tải sẵn ảnh
 const VONG_DI = ['w02', 'w03', 'w05', 'w07', 'w09', 'w10', 'w11'];   // một vòng bước chân (bắt đầu w01, dừng w12)
@@ -221,7 +223,7 @@ function tinhK() { K = Math.max(0.35, TS ? Math.min(canh.clientHeight * 0.4, 220
 const hrCu = $('#hrCu');
 function tuThe(t, nhanh) {   // nhanh: khung bước chân, đổi ngay không mờ dần
   if (t === 'ngu') t = NGU_ANH[Math.floor(Math.random() * NGU_ANH.length)];
-  t = ANH[t] || t; if (!KT[t]) t = 'dung';
+  t = ANH[t] || t; t = TAM_THAY[t] || t; if (!KT[t]) t = 'dung';
   if (t === st.ten && hr.getAttribute('src')) { hr.style.height = Math.round(KT[t][1] * K) + 'px'; return; }
   if (!nhanh && hr.getAttribute('src')) {   // ảnh cũ mờ dần chồng lên ảnh mới → chuyển tư thế êm
     hrCu.src = hr.src; hrCu.style.height = hr.style.height; hrCu.classList.toggle('lat', hr.classList.contains('lat'));
