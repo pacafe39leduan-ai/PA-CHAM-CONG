@@ -191,7 +191,7 @@ async function call(fn, ...args) {
 // ---------- nhân vật ----------
 const hr = $('#hr'), hrw = $('#hrw'), hrb = $('#hrb'), bong = $('#bong'), canh = $('#canh');
 const chatO = document.getElementById('chatO');   // giữ sẵn: ô chat có lúc nằm trong bong bóng, có lúc bị tách ra
-const st = { x: 120, dangMach: false, hang: [], daMach: null, ngay: '', tieng: luu.get('hr_tieng', false), cuoiNhac: Date.now(), cho: {}, tongCho: -1, lanDau: true, matMang: false, ten: 'chao', hoi: null, canQuyet: [], henBong: null, henHoi: null, phien: 0, keo: null, dayY: null, dungYen: 0, cuoiViec: Date.now(), dangNgu: false, lenh: null };
+const st = { x: 120, dangMach: false, hang: [], daMach: null, ngay: '', tieng: luu.get('hr_tieng', false), cuoiNhac: Date.now(), cho: {}, tongCho: -1, lanDau: true, matMang: false, ten: 'chao', hoi: null, canQuyet: [], henBong: null, henHoi: null, phien: 0, keo: null, dayY: null, dungYen: 0, cuoiViec: Date.now(), dangNgu: false, lenh: null, lichSu: [], lichSuLuc: 0 };
 let K = 0.7;   // tỉ lệ hiển thị (theo chiều cao cửa sổ)
 function tinhK() { K = Math.max(0.35, TS ? Math.min(canh.clientHeight * 0.4, 220) / 380 : Math.min(canh.clientHeight * 0.56, 330) / 380); }
 function tuThe(t) {
@@ -456,17 +456,19 @@ async function hoiHong(cau) { bong.classList.remove('rong');
   tuThe('ghi-so'); hoatCanh('');
   bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span>Để Hóng Rồi lật sổ…'; bong.onclick = null; bong.classList.add('hien'); datBong();
   let kq; const phien = ++st.phien;
-  try { kq = await call('adminHrHoi', luu.get('hr_pin', ''), cau); }
+  if (Date.now() - st.lichSuLuc > 15 * 60 * 1000) st.lichSu = [];
+  try { kq = await call('adminHrHoi', luu.get('hr_pin', ''), cau, st.lichSu.slice(-6)); }
   catch (e) { kq = { hieu: true, text: e.message, loi: true }; }
   if (phien !== st.phien) return;   // sếp đã bấm Bỏ qua
   if (!kq.hieu && !HOI_RO.test(cau)) { st.dangMach = false; return traLoi(cau, hoiCu); }   // không phải câu hỏi: coi là câu trả lời
   if (!kq.hieu) {   // rõ là câu hỏi mà Hóng chưa hiểu: KHÔNG coi là câu trả lời duyệt (15/11/2026: "có gì cần duyệt không" từng bị hiểu là "không")
     st.hoi = hoiCu; tuThe('nhun-vai'); hoatCanh('giat');
-    bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span>Hóng Rồi chưa hiểu câu hỏi này, chưa làm gì cả. Sếp hỏi lại kiểu khác, hoặc bấm <button type="button" class="goiy">💡 Gợi ý câu hỏi</button>';
+    bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span>Hóng Rồi chưa hiểu câu hỏi này, chưa làm gì cả. Sếp hỏi lại kiểu khác giúp em nha.' + (kq.aiLoi ? '<br><small>AI tạm nghỉ: ' + esc(kq.aiLoi) + '</small>' : '');
     if (TS) bong.appendChild(chatForm);
     datBong(); henDong(30000); return;
   }
   st.hoi = hoiCu;
+  if (!kq.loi) { st.lichSu.push({ q: cau, a: kq.text }); st.lichSu = st.lichSu.slice(-6); st.lichSuLuc = Date.now(); }
   tuThe(kq.loi ? 'nhun-vai' : /hỏi ai|không thấy/.test(kq.text) ? 'nhun-vai' : 'chao2'); hoatCanh('giat');
   bong.innerHTML = '<span class="mo-dau">Sếp: “' + esc(cau) + '”</span><span class="tra">' + esc(kq.text) + '</span>' +
     (TS ? '' : '');
@@ -480,7 +482,7 @@ function moiHoi() {   // bấm vào Hóng Rồi: mở ô hỏi
   if (st.dangMach && bong.classList.contains('hien')) { chatO.focus(); return; }
   clearTimeout(hen); clearInterval(khung); st.dangMach = true;
   tuThe('nghe-ngong'); hoatCanh('');
-  bong.innerHTML = 'Sếp cần gì? <button type="button" class="goiy">💡 Gợi ý câu hỏi</button>';
+  bong.innerHTML = 'Sếp cần gì?';
   bong.onclick = null; bong.classList.remove('rong'); bong.classList.add('hien');
   if (TS) bong.appendChild(chatForm);
   datBong(); chatO.focus({ preventScroll: true });
@@ -540,6 +542,7 @@ $('#chat').addEventListener('submit', e => {
   e.preventDefault(); const o = chatO; const c = o.value.trim(); o.value = '';
   if (!c) return;
   if (lenhHong(c)) return;
+  if (!st.hoi) return hoiHong(c);   // không có việc nào đang chờ sếp trả lời: câu nào cũng là câu hỏi
   if ((LA_HOI.test(c) && !CO_GIO.test(c)) || HOI_RO.test(c)) hoiHong(c); else traLoi(c);
 });
 
