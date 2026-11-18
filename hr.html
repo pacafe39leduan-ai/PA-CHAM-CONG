@@ -86,6 +86,14 @@
   #bong .nut button.goi { background:var(--nau); color:#fff; box-shadow:0 0 0 3px #f2c94c; }
   #bong small.goi-y { display:block; margin-top:4px; color:#7a5200; }
   #bong .mo { color:var(--nau2); text-decoration:underline; cursor:pointer; }
+  /* v51: báo cáo dạng thẻ – chữ ở trên, nút quyết định ở dưới */
+  #bong .the { border:1px solid #e2d2bd; border-radius:10px; padding:7px 9px; margin-top:8px; background:#fffdf9; }
+  #bong .the .nut { margin-top:6px; }
+  #bong .the .kq { font-size:13px; margin-top:5px; color:var(--mo); white-space:pre-line; }
+  #bong .the.xong { background:#f1f8f3; border-color:#b9dcc5; }
+  #bong .the.xong .kq { color:#2e7d4f; }
+  #bong .the.dang button { opacity:.5; pointer-events:none; }
+  #bong .the .goi-y { margin-top:4px; }
   #chat { position:absolute; left:8px; bottom:8px; display:flex; gap:6px; width:min(380px, 52vw); z-index:2; }
   #chat input { flex:1; min-width:0; font-size:14px; padding:8px 10px; border:1px solid #cdb8a0; border-radius:10px; background:rgba(255,255,255,.95); }
   #chat button { font-size:14px; padding:8px 12px; border:0; border-radius:10px; background:var(--nau); color:#fff; cursor:pointer; }
@@ -345,10 +353,73 @@ function noiNhe(text) {
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+// ---------- v51: thẻ báo cáo – chữ ở trên, nút quyết định ở dưới ----------
+function theHTML(sk, j) {
+  const L = LOAI[sk.loai] || LOAI.don, coNut = !!(sk.nut && sk.nut.length);
+  const goi = coNut && sk.goiY >= 0 && sk.goiY < sk.nut.length ? sk.goiY : -1;
+  return '<div class="the' + (sk.daQuyet ? ' xong' : '') + '" data-j="' + j + '"><span class="nhan" style="background:' + L.mau + '">' + esc(L.nhan) + '</span>' + esc(sk.text) +
+    (coNut ? '<div class="nut">' + sk.nut.map((n, i) => '<button type="button" data-i="' + i + '"' + (i === goi ? ' class="goi"' : '') + '>' + esc(n[1]) + '</button>').join('') + '</div>' +
+      (goi >= 0 ? '<small class="goi-y">Sếp muốn: <b>' + esc(sk.nut[goi][1]) + '</b> – bấm nút để xác nhận.</small>' : '') : '') +
+    '<div class="kq">' + (sk.daQuyet ? '✓ Đã quyết: ' + esc(sk.daQuyet) : '') + '</div></div>';
+}
+// đặt danh sách thẻ vào bong bóng (đầu = phần chữ đã có trong bong bóng), bấm nút thẻ nào xử lý thẻ đó
+function datThe(ds) {
+  bong.insertAdjacentHTML('beforeend', ds.map((sk, j) => theHTML(sk, j)).join(''));
+  bong.classList.add('rong');
+  bong.onclick = e => {
+    const b = e.target.closest('.the button[data-i]');
+    if (b) { const el = b.closest('.the'), sk = ds[Number(el.dataset.j)]; return quyetThe(el, sk, sk.nut[Number(b.dataset.i)][0], ds); }
+    if (e.target.closest('.mo')) moApp();
+  };
+}
+async function quyetThe(el, sk, cau, ds) {
+  if (st.dangNgu) thuc(); st.cuoiViec = Date.now();
+  henDong(120000);
+  el.classList.add('dang'); el.querySelector('.kq').textContent = 'Để Hóng Rồi làm…';
+  tuThe('ghi-so'); hoatCanh('');
+  let kq; const phien = st.phien;
+  try { kq = await call('adminHrTraLoi', luu.get('hr_pin', ''), sk.k, cau, ''); }
+  catch (e) { kq = { xong: false, loi: true, text: e.message }; }
+  if (phien !== st.phien) return;   // sếp đã bấm Bỏ qua
+  el.classList.remove('dang');
+  if (kq.xong) {
+    st.canQuyet = st.canQuyet.filter(x => x.k !== sk.k); if (st.hoi && st.hoi.k === sk.k) st.hoi = null;
+    veSoDaXong(sk.k); doc(kq.text);
+    tuThe(Math.random() < 0.5 ? 'chao2' : 'ghi-so'); hoatCanh('giat');
+    el.classList.add('xong'); const nut = el.querySelector('.nut'); if (nut) nut.remove(); const gy = el.querySelector('.goi-y'); if (gy) gy.remove();
+    el.querySelector('.kq').textContent = '✓ Xong: ' + kq.text;
+    if (kq.tiep && kq.tiep.nut) {   // vd "Báo vắng luôn" -> việc vắng kèm nút hiện ngay dưới
+      st.daMach.add(kq.tiep.k); luu.set('hr_da', { ngay: st.ngay, k: [...st.daMach] }); ghiSo(kq.tiep, gioNay());
+      ds.push(kq.tiep); el.insertAdjacentHTML('afterend', theHTML(kq.tiep, ds.length - 1));
+    }
+    if (![...bong.querySelectorAll('.the')].some(x => !x.classList.contains('xong'))) {   // xong hết thẻ
+      bong.insertAdjacentHTML('beforeend', '<small>Xong hết rồi sếp!</small>'); henDong(6000);
+    }
+  } else {
+    el.querySelector('.kq').textContent = kq.text;
+    if (kq.loi) tuThe('nhun-vai');
+    else if (/mấy giờ/.test(kq.text)) {   // vắng: nhập giờ vào/ra -> gõ ở ô chat, trả lời đúng việc này
+      st.hoi = sk; chatO.placeholder = 'vd: vào 8:05 ra 17:00'; if (TS) bong.appendChild(chatForm); chatO.focus({ preventScroll: true });
+    }
+  }
+  datBong();
+}
 function mach(sk) { bong.classList.remove('rong');   // chạy/đi ra giữa, đổi tư thế, mách
   if (st.dangNgu) thuc(); st.cuoiViec = Date.now();
   st.dangMach = true; clearTimeout(hen); clearTimeout(st.henBong);
   const L = LOAI[sk.loai] || LOAI.don;
+  if (sk.ds && sk.ds.length) {   // v51: nhiều việc một lúc (nhắc 45 phút, mở cửa sổ đầu ngày) -> 1 khung, mỗi việc 1 thẻ
+    diToi(st.x, () => {
+      tuThe(L.tu); hoatCanh('giat');
+      bong.innerHTML = '<span class="mo-dau">' + esc(nhieu(L.mo)) + '</span>' + esc(sk.text);
+      datThe(sk.ds.map(x => Object.assign({}, x)));
+      bong.insertAdjacentHTML('beforeend', '<small><span class="mo">Mở PA staff</span></small>');
+      bong.classList.add('hien'); datBong();
+      baoGoc(L.nhan, sk.text); doc(sk.text);
+      st.hoi = null; henDong(120000);
+    });
+    return;
+  }
   const tu = sk.loai === 'tangca' && /\|2$/.test(sk.k || '') ? 'dung-lai' : L.tu;
   const giua = canh.clientWidth / 2;
   const toi = sk.nhe || Date.now() < st.dungYen ? st.x : (Math.abs(st.x - giua) > 120 ? giua + (Math.random() - .5) * 160 : st.x);
@@ -369,10 +440,11 @@ function mach(sk) { bong.classList.remove('rong');   // chạy/đi ra giữa, đ
       if (e.target.closest('.mo')) moApp();
     };
     if (!sk.nhe && sk.loai !== 'loi') { if (sk.loai !== 'mung') baoGoc(L.nhan, sk.text); doc((mo ? mo + ' ' : '') + sk.text); }
-    st.hoi = coHoi ? sk : null;
-    if (coHoi && TS) { bong.appendChild(chatForm); datBong(); }
-    if (coHoi) chatO.focus({ preventScroll: true });
-    henDong(coHoi ? 35000 : sk.nhe ? 4500 : 9000);
+    const hoiThat = coHoi && !sk.nhe;   // v51: lượt vào ca đúng giờ có nút "Đã biết" nhưng vẫn báo nhẹ, không giữ ô chat
+    st.hoi = hoiThat ? sk : null;
+    if (hoiThat && TS) { bong.appendChild(chatForm); datBong(); }
+    if (hoiThat) chatO.focus({ preventScroll: true });
+    henDong(hoiThat ? 35000 : sk.nhe ? (coHoi ? 8000 : 4500) : 9000);
   }, L.chay && !sk.nhe);
 }
 
@@ -390,7 +462,8 @@ async function traLoi(cau, sk) { bong.classList.remove('rong');
   cau = String(cau || '').trim();
   if (!cau) return;
   if (!sk) {   // chưa có câu hỏi nào đang mở: lấy việc cần quyết mới nhất trong sổ
-    sk = st.canQuyet.length ? st.canQuyet[st.canQuyet.length - 1] : null;
+    const cq = st.canQuyet.filter(x => !x.nhe);
+    sk = cq.length ? cq[cq.length - 1] : null;
     if (!sk) { if (!st.dangMach) noiNhe('Hiện chưa có việc gì cần sếp quyết. Muốn tra thì gõ: lương Khang tháng 11.'); return; }
   }
   clearTimeout(st.henBong); clearTimeout(hen); clearInterval(khung);
@@ -408,6 +481,10 @@ async function traLoi(cau, sk) { bong.classList.remove('rong');
     tuThe(Math.random() < 0.5 ? 'chao2' : 'ghi-so'); hoatCanh('giat');
     bong.innerHTML = '<span class="nhan" style="background:#2e7d4f">Xong</span>' + esc(kq.text);
     doc(kq.text); veSoDaXong(sk.k);
+    if (kq.tiep && kq.tiep.nut) {   // v51: "Báo vắng luôn" -> hỏi ngay việc vắng vừa tạo
+      st.daMach.add(kq.tiep.k); luu.set('hr_da', { ngay: st.ngay, k: [...st.daMach] }); ghiSo(kq.tiep, gioNay());
+      clearTimeout(st.henBong); st.henBong = setTimeout(() => mach(kq.tiep), 2500); return datBong();
+    }
     henDong(5000); clearTimeout(st.henHoi); st.henHoi = setTimeout(hoi, 1500);
   } else if (kq.loi) {
     st.hoi = null; tuThe('nhun-vai');
@@ -499,11 +576,12 @@ async function hoiHong(cau) { bong.classList.remove('rong');
     (TS ? '' : '');
   if (TS) bong.appendChild(chatForm);
   datBong(); doc(kq.text.replace(/\n/g, '. '));
-  if (kq.viec && kq.viec.length) {   // AI mở việc chờ: hiện lần lượt từng việc kèm nút (nút sếp muốn được tô sẵn)
-    const ds = kq.viec.map(x => Object.assign({}, x.sk, { goiY: x.chon, tuChat: true }));
+  if (kq.viec && kq.viec.length) {   // v51: việc chờ hiện NGAY dưới câu trả lời, mỗi việc 1 thẻ (chữ trên, nút dưới; nút sếp muốn tô sẵn)
+    const ds = kq.viec.map(x => Object.assign({}, x.sk, { goiY: x.chon }));
     st.hang = st.hang.filter(x => !ds.some(y => y.k === x.k));
-    clearTimeout(st.henBong);
-    st.henBong = setTimeout(() => { if (phien !== st.phien) return; st.hang.unshift(...ds.slice(1)); mach(ds[0]); }, 1600);
+    datThe(ds);
+    if (TS) bong.appendChild(chatForm);
+    datBong(); henDong(120000);
     return;
   }
   henDong(25000);
@@ -612,7 +690,7 @@ function ghiSo(sk, gio) {
   const d = document.createElement('div'); d.className = 'd';
   d.dataset.k = sk.k || '';
   d.innerHTML = '<i>' + esc(gio) + '</i><span><b style="color:' + L.mau + '">' + esc(L.nhan) + '</b> · ' + esc(sk.text) +
-    (sk.nut ? ' <button type="button">Trả lời</button>' : '') + '</span>';
+    (sk.nut ? ' <button type="button">Trả lời</button>' : sk.daQuyet ? ' <b style="color:#2e7d4f">✓ đã xử lý</b>' : '') + '</span>';
   if (sk.nut) d.querySelector('button').onclick = () => { if (st.dangMach) { st.hang.unshift(sk); } else mach(sk); };
   $('#soDs').prepend(d);
   $('#soDem').textContent = $('#soDs').children.length + ' chuyện';
@@ -640,26 +718,30 @@ async function hoi() {
     st.tongCho = tong; st.cho = d.cho; veCho(d.cho); baoKhay();
     if (st.matMang) { st.matMang = false; st.hang.push({ loai: 'vao', nhe: true, text: 'Có mạng lại rồi, hóng tiếp!' }); }
     $('#tt').textContent = 'đang hóng · ' + (d.dangCo.length ? d.dangCo.length + ' người trong ca' : 'chưa ai trong ca') + ' · cập nhật ' + d.luc.slice(0, 5);
-    st.canQuyet = d.ds.filter(x => x.nut && x.nut.length);
-    const conK = new Set(d.ds.map(x => x.k));
+    // v51: việc cần quyết = có nút, chưa quyết; việc chờ thật (đơn, tăng ca, vắng…) đứng trước, lượt vào ca đúng giờ đứng cuối
+    const CHO = { don: 1, xin: 1, tangca: 1, vang: 1, mat: 1, nl: 1 };
+    st.canQuyet = d.ds.filter(x => x.nut && x.nut.length).sort((a, b) => (CHO[b.loai] ? 1 : 0) - (CHO[a.loai] ? 1 : 0) || (a.nhe ? 1 : 0) - (b.nhe ? 1 : 0));
+    const conK = new Set(d.ds.filter(x => !x.daQuyet).map(x => x.k));
     document.querySelectorAll('#soDs .d').forEach(el => { if (el.dataset.k && !conK.has(el.dataset.k) && el.querySelector('button')) veSoDaXong(el.dataset.k); });   // đã xử lý ở app
     const moi = d.ds.filter(x => !st.daMach.has(x.k));
     moi.forEach(x => {
       st.daMach.add(x.k); ghiSo(x, x.gio || gioNay());
+      if (x.daQuyet) return;            // sếp đã quyết (ở máy khác / trước đó): chỉ ghi sổ
       if (st.lanDau && x.nhe) return;   // mới mở cửa sổ: lượt vào ca cũ chỉ ghi sổ, không nói
       st.hang.push(x);
     });
-    if (st.lanDau && st.hang.length > 4) {
-      const n = st.hang.length;
-      st.hang.unshift({ loai: 'nhac', text: 'Từ đầu ngày hóng được ' + n + ' chuyện, nghe từng vụ nè.' });
+    if (st.lanDau && st.hang.length > 4) {   // v51: dồn thành 1 khung thẻ thay vì mách từng vụ
+      const n = st.hang.length, ds = st.hang.filter(x => x.nut && x.nut.length);
+      st.hang = st.hang.filter(x => !(x.nut && x.nut.length));
+      if (ds.length) st.hang.unshift({ loai: 'nhac', text: 'Từ đầu ngày hóng được ' + n + ' chuyện, ' + ds.length + ' việc cần sếp quyết – bấm nút ngay dưới từng việc:', ds });
     }
     st.lanDau = false;
     luu.set('hr_da', { ngay: st.ngay, k: [...st.daMach] });
     if (tong && Date.now() - st.cuoiNhac > NHAC_CHO && !moi.length) {
       st.cuoiNhac = Date.now();
       const ten = { don: 'đơn', xin: 'đơn xin phép', tangca: 'vụ tăng ca', vang: 'vụ vắng mặt', mat: 'lỗi khuôn mặt', nl: 'công ngoài lịch' };
-      st.hang.push({ loai: 'nhac', text: 'Còn ' + Object.keys(ten).filter(k => d.cho[k]).map(k => d.cho[k] + ' ' + ten[k]).join(', ') + ' đang chờ sếp xử lý.' });
-      if (st.canQuyet.length) st.hang.push(st.canQuyet[0]);   // hỏi lại việc cũ nhất
+      const dsCho = st.canQuyet.filter(x => !x.nhe).slice(0, 12);   // v51: mọi việc còn chờ trong 1 khung, mỗi việc kèm nút
+      st.hang.push({ loai: 'nhac', text: 'Còn ' + Object.keys(ten).filter(k => d.cho[k]).map(k => d.cho[k] + ' ' + ten[k]).join(', ') + ' đang chờ sếp xử lý' + (dsCho.length ? ' – bấm nút ngay dưới từng việc:' : '.'), ds: dsCho });
     }
     if (!st.dangMach && st.hang.length) { if (st.dangNgu) thuc(); mach(st.hang.shift()); }
   } catch (e) {
