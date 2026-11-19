@@ -101,6 +101,9 @@
   #bong.chat { scroll-padding-top:40px; scroll-padding-bottom:64px; }   /* nút không bị ô chat dính đáy / hàng tiêu đề che khi cuộn tới */
   #bong.chat::-webkit-scrollbar { width:6px; } #bong.chat::-webkit-scrollbar-thumb { background:rgba(74,51,36,.3); border-radius:6px; }
   #bong.chat .cs-dau-hang { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 0 2px; }
+  #bong.chat .cs-dau-hang { cursor:grab; touch-action:none; user-select:none; }
+  #bong.chat.dangKeo, #bong.chat.dangKeo .cs-dau-hang { cursor:grabbing; }
+  #bong.chat.dangKeo { transition:none; }
   #bong.chat .cs-dau { font-size:11.5px; color:var(--nau2); background:rgba(255,253,249,.95); border:1px solid #e2d2bd; border-radius:999px; padding:2px 10px; }
   #bong.chat .boqua { position:static; background:rgba(255,253,249,.95); border:1px solid #e2d2bd; border-radius:999px; padding:2px 10px; }
   #bong.chat .cs { display:flex; align-items:flex-end; gap:7px; margin:9px 0; animation:csVao .22s ease-out; }
@@ -374,6 +377,11 @@ function datBong() {
   const day = fr ? Math.min(c.height, fr.top - c.top - 8) : c.height;
   bong.style.maxHeight = Math.max(160, day - 12) + 'px';
   const b = bong.getBoundingClientRect();
+  if (bong.classList.contains('chat') && st.viTriChat) {   // v60: khung chat ở chỗ sếp đã kéo tới (giữ trong khung, không đè ô chat)
+    bong.style.left = Math.max(4, Math.min(c.width - b.width - 4, st.viTriChat.l)) + 'px';
+    bong.style.top = Math.max(4, Math.min(day - b.height - 6, st.viTriChat.t)) + 'px';
+    return;
+  }
   let left = r.left - c.left + r.width / 2 - b.width / 2;
   left = Math.max(8, Math.min(c.width - b.width - 8, left));
   bong.style.left = left + 'px';
@@ -412,7 +420,7 @@ function veChat_(cho) {   // v59: mỗi câu 1 bong bóng – sếp bên phải,
   st.chat.log.forEach(x => { if (!x.gio) x.gio = gioNay(); });
   const gio = x => '<span class="gio">' + esc(x.gio) + '</span>';
   const hong = (cls, noi) => '<div class="cs hong' + cls + '"><span class="av" aria-hidden="true"></span><div class="bb">' + noi + '</div></div>';
-  bong.innerHTML = '<div class="cs-dau-hang"><span class="cs-dau">Trò chuyện · tự đóng sau ' + conLai + ' phút không nhắn</span>' + NUT_BO_QUA + '</div>' +
+  bong.innerHTML = '<div class="cs-dau-hang" title="Kéo để di chuyển khung chat · bấm đúp để về cạnh Hóng"><span class="cs-dau">⠿ Trò chuyện · tự đóng sau ' + conLai + ' phút không nhắn</span>' + NUT_BO_QUA + '</div>' +
     st.chat.log.map(x => {
       if (x.ai === 'sep') return '<div class="cs sep"><div class="bb">' + esc(x.text) + gio(x) + '</div></div>';
       if (x.ai === 'bao') return hong(' bao', '<span class="nhan-bao">Hóng mách</span>' + (x.j >= 0 ? theHTML(st.chat.the[x.j], x.j) : esc(x.text)) + gio(x));
@@ -630,6 +638,37 @@ async function traLoi(cau, sk) { bong.classList.remove('rong');
   datBong();
 }
 const chatForm = $('#chat');
+// ---------- v60: kéo khung chat đi chỗ khác (nắm hàng trên cùng), nhớ vị trí; bấm đúp = về cạnh Hóng ----------
+st.viTriChat = luu.get('hr_vt_chat', null);
+bong.addEventListener('pointerdown', e => {
+  if (!bong.classList.contains('chat') || !e.target.closest('.cs-dau-hang') || e.target.closest('.boqua')) return;
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault();
+  if (Date.now() - (st.bamChatLuc || 0) < 400) {   // bấm đúp hàng trên cùng -> về cạnh Hóng
+    st.bamChatLuc = 0; st.viTriChat = null; luu.set('hr_vt_chat', null); datBong(); return;
+  }
+  st.bamChatLuc = Date.now();
+  st.keoChat = { x0: e.clientX, y0: e.clientY, l0: bong.offsetLeft, t0: bong.offsetTop };
+  bong.classList.add('dangKeo');
+  try { bong.setPointerCapture(e.pointerId); } catch (x) { }
+});
+bong.addEventListener('pointermove', e => {
+  const k = st.keoChat; if (!k) return;
+  const c = canh.getBoundingClientRect();
+  const l = Math.max(4, Math.min(c.width - bong.offsetWidth - 4, k.l0 + e.clientX - k.x0));
+  const t = Math.max(4, Math.min(c.height - 40, k.t0 + e.clientY - k.y0));
+  if (Math.hypot(e.clientX - k.x0, e.clientY - k.y0) > 4) st.bamChatLuc = 0;   // đã kéo thật -> không tính là bấm đúp
+  bong.style.left = l + 'px'; bong.style.top = t + 'px';
+  st.viTriChat = { l, t }; st.docLuc = Date.now();
+});
+const thaChat = e => {
+  if (!st.keoChat) return;
+  st.keoChat = null; bong.classList.remove('dangKeo');
+  try { bong.releasePointerCapture(e.pointerId); } catch (x) { }
+  luu.set('hr_vt_chat', st.viTriChat); datBong();
+};
+bong.addEventListener('pointerup', thaChat); bong.addEventListener('pointercancel', thaChat);
+
 // v57: theo dõi sếp đang đọc / gõ để bong bóng không tự tắt giữa chừng
 bong.addEventListener('mouseenter', () => { st.chuotTrenBong = true; });
 bong.addEventListener('mouseleave', () => { st.chuotTrenBong = false; st.docLuc = Date.now(); });
@@ -901,7 +940,7 @@ if (APP) {
   let tren = null;
   const kiem = (x, y) => {
     const el = document.elementFromPoint(x, y);
-    const co = !!(st.keo || (el && el.closest('#hr, #bong.hien, #dang .hop, #chat')));
+    const co = !!(st.keo || st.keoChat || (el && el.closest('#hr, #bong.hien, #dang .hop, #chat')));
     if (co !== tren) { tren = co; APP.xuyen(!co); }
   };
   document.addEventListener('mousemove', e => kiem(e.clientX, e.clientY));
